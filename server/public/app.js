@@ -85,8 +85,7 @@ function veXacThuc(che) {
         PHIEN.luu(d); location.hash = `#/${trangMacDinh()}`;
       } catch (er) { loi.textContent = er.message; } finally { nut.disabled = false; }
     } }, dangKy ? truong('Họ tên', ten) : null, truong('Email', email), truong('Mật khẩu', mk), loi, nut),
-    h('p', { class: 'small', style: 'margin-top:14px;text-align:center' }, dangKy ? 'Đã có tài khoản? ' : 'Chưa có tài khoản? ', h('a', { href: dangKy ? '#/dang-nhap' : '#/dang-ky' }, dangKy ? 'Đăng nhập' : 'Đăng ký')),
-    dangKy ? null : h('div', { class: 'hint' }, 'Demo (mật khẩu Demo@123): người dùng demo@demo.vn · quản trị admin@demo.vn · nhân viên hỗ trợ hotro@demo.vn · kiểm toán viên kiemtoan@demo.vn'))));
+    h('p', { class: 'small', style: 'margin-top:14px;text-align:center' }, dangKy ? 'Đã có tài khoản? ' : 'Chưa có tài khoản? ', h('a', { href: dangKy ? '#/dang-nhap' : '#/dang-ky' }, dangKy ? 'Đăng nhập' : 'Đăng ký')))));
   document.title = `${dangKy ? 'Đăng ký' : 'Đăng nhập'} · Quản lý thu chi`;
 }
 
