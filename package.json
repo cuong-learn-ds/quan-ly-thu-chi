@@ -1,0 +1,11 @@
+{
+  "name": "quan-ly-thu-chi-goc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chạy từ thư mục gốc: npm run setup (một lần), rồi npm start",
+  "scripts": {
+    "setup": "npm --prefix server install",
+    "start": "npm --prefix server start",
+    "test": "npm --prefix server test"
+  }
+}

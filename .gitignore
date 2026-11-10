@@ -1,0 +1,13 @@
+appsettings.Development.json
+bin/
+obj/
+uploads/
+.dart_tool/
+build/
+*.user
+.vs/
+
+node_modules/
+*.db
+*.db-*
+.env

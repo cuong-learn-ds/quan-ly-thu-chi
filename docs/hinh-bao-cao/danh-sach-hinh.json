@@ -1,0 +1,140 @@
+[
+ {
+  "file": "uc_1.png",
+  "name": "Hình 1 – Sơ đồ use case tổng quát",
+  "W": 1091,
+  "H": 760
+ },
+ {
+  "file": "uc_2_1.png",
+  "name": "Hình 2.1 – Phân rã use case Tài khoản",
+  "W": 725,
+  "H": 500
+ },
+ {
+  "file": "uc_2_2.png",
+  "name": "Hình 2.2 – Phân rã use case Quản lý ví",
+  "W": 864,
+  "H": 382
+ },
+ {
+  "file": "uc_2_3.png",
+  "name": "Hình 2.3 – Phân rã use case Quản lý danh mục",
+  "W": 886,
+  "H": 382
+ },
+ {
+  "file": "uc_2_4.png",
+  "name": "Hình 2.4 – Phân rã use case Quản lý giao dịch",
+  "W": 828,
+  "H": 478
+ },
+ {
+  "file": "uc_2_5.png",
+  "name": "Hình 2.5 – Phân rã use case Quản lý ngân sách",
+  "W": 930,
+  "H": 549
+ },
+ {
+  "file": "uc_2_6.png",
+  "name": "Hình 2.6 – Phân rã use case Quản lý mục tiêu tiết kiệm",
+  "W": 857,
+  "H": 510
+ },
+ {
+  "file": "uc_2_7.png",
+  "name": "Hình 2.7 – Phân rã use case Xem báo cáo thống kê",
+  "W": 915,
+  "H": 446
+ },
+ {
+  "file": "uc_2_8.png",
+  "name": "Hình 2.8 – Phân rã use case Quản trị hệ thống",
+  "W": 971,
+  "H": 620
+ },
+ {
+  "file": "uc_2_9.png",
+  "name": "Hình 2.9 – Phân rã use case Thông báo nhắc nhở",
+  "W": 725,
+  "H": 660
+ },
+ {
+  "file": "uc_3_1.png",
+  "name": "Hình 3.1 – Chi tiết use case Đăng ký",
+  "W": 1133,
+  "H": 382
+ },
+ {
+  "file": "uc_3_2.png",
+  "name": "Hình 3.2 – Chi tiết use case Đăng nhập",
+  "W": 1170,
+  "H": 382
+ },
+ {
+  "file": "uc_3_3.png",
+  "name": "Hình 3.3 – Chi tiết use case Thêm ví",
+  "W": 1058,
+  "H": 382
+ },
+ {
+  "file": "uc_3_4.png",
+  "name": "Hình 3.4 – Chi tiết use case Xóa danh mục",
+  "W": 1263,
+  "H": 318
+ },
+ {
+  "file": "uc_3_5.png",
+  "name": "Hình 3.5 – Chi tiết use case Thêm giao dịch",
+  "W": 1131,
+  "H": 587
+ },
+ {
+  "file": "uc_3_6.png",
+  "name": "Hình 3.6 – Chi tiết use case Quét hóa đơn",
+  "W": 1212,
+  "H": 440
+ },
+ {
+  "file": "uc_3_7.png",
+  "name": "Hình 3.7 – Chi tiết use case Lập ngân sách",
+  "W": 1168,
+  "H": 382
+ },
+ {
+  "file": "uc_3_8.png",
+  "name": "Hình 3.8 – Chi tiết use case Nạp tiền vào mục tiêu",
+  "W": 1153,
+  "H": 523
+ },
+ {
+  "file": "uc_3_9.png",
+  "name": "Hình 3.9 – Chi tiết use case Xuất báo cáo Excel",
+  "W": 1175,
+  "H": 382
+ },
+ {
+  "file": "uc_3_10.png",
+  "name": "Hình 3.10 – Chi tiết use case Khóa / mở khóa tài khoản",
+  "W": 915,
+  "H": 459
+ },
+ {
+  "file": "uc_3_11.png",
+  "name": "Hình 3.11 – Chi tiết use case Cài đặt nhắc nhở",
+  "W": 857,
+  "H": 459
+ },
+ {
+  "file": "uc_3_12.png",
+  "name": "Hình 3.12 – Chi tiết use case Tổng kết cuối tháng",
+  "W": 1243,
+  "H": 523
+ },
+ {
+  "file": "lop_4_1.png",
+  "name": "Hình 4.1 – Sơ đồ lớp thực thể",
+  "W": 1916,
+  "H": 1683
+ }
+]
