@@ -2,6 +2,16 @@
 
 Đồ án môn Phân tích thiết kế hướng đối tượng. Sản phẩm là **website**: backend REST API và giao diện chạy trên trình duyệt, phục vụ chung từ một cổng.
 
+## Chức năng chính
+
+- Tài khoản, ví (tiền mặt / ngân hàng / ví điện tử), danh mục thu chi, giao dịch (tìm kiếm, lọc, xuất Excel).
+- Quét hóa đơn từ ảnh tải lên, tạo giao dịch chi nháp rồi người dùng xác nhận.
+- Ngân sách theo danh mục có cảnh báo; mục tiêu tiết kiệm có theo dõi tiến độ.
+- **Chuyển tiền giữa các ví** (trang Ví): trừ ví nguồn, cộng ví đích, ghi lịch sử; không tính vào thu chi.
+- **Giao dịch định kỳ** (trang Định kỳ): lịch thu/chi hằng tháng vào một ngày cố định (1–28), bộ hẹn giờ tự tạo giao dịch mỗi tháng một lần.
+- **Biểu đồ trên trang Tổng quan:** biểu đồ tròn chi theo danh mục và biểu đồ cột thu chi 12 tháng.
+- Báo cáo, thông báo nhắc nhở; quản trị viên, nhân viên hỗ trợ, kiểm toán viên có màn hình riêng.
+
 ## Chạy demo
 
 Yêu cầu: **Node.js ≥ 22.13** (đã thử với 24). Không cần cài CSDL riêng (SQLite có sẵn trong Node).
@@ -43,24 +53,24 @@ cd server
 npm test
 ```
 
-37 kiểm thử: quy tắc nghiệp vụ R1–R10 ở tầng domain, và các luồng API (đăng ký/đăng nhập, ví và giao dịch, cảnh báo ngân sách, nạp mục tiêu, khóa tài khoản, tổng kết idempotent, quét hóa đơn, bộ hẹn giờ, dữ liệu demo).
+45 kiểm thử: quy tắc nghiệp vụ R1–R12 ở tầng domain, và các luồng API (đăng ký/đăng nhập, ví và giao dịch, cảnh báo ngân sách, nạp mục tiêu, khóa tài khoản, tổng kết idempotent, quét hóa đơn, bộ hẹn giờ, dữ liệu demo, chuyển tiền giữa ví, giao dịch định kỳ).
 
 ## Cấu trúc
 
 ```
 server/
-├── src/domain/      15 lớp + enum, đúng tên và phương thức như sơ đồ lớp Hình 4.1 (StarUML)
+├── src/domain/      17 lớp + enum, đúng tên và phương thức như sơ đồ lớp Hình 4.1 (StarUML)
 ├── src/services/    nghiệp vụ theo nhóm use case; mỗi thao tác nhiều bước chạy trong 1 transaction
 ├── src/app.js       REST API (Express), JWT, phân quyền, lỗi 400/401/403/404/500
 ├── src/ha-tang.js   đồng hồ giờ Việt Nam, BCrypt, JWT, OCR (Gemini/Fake), lưu ảnh hóa đơn
-├── src/jobs.js      bộ hẹn giờ: nhắc ghi chép, nhắc mục tiêu, tổng kết cuối tháng
+├── src/jobs.js      bộ hẹn giờ: giao dịch định kỳ, nhắc ghi chép, nhắc mục tiêu, tổng kết cuối tháng
 ├── src/seed.js      danh mục mặc định, admin, dữ liệu demo
 ├── public/          giao diện web (HTML/CSS/JS thuần, không cần build)
 └── test/            kiểm thử (node:test)
-docs/staruml/        mô hình use case (22 sơ đồ) và sơ đồ lớp
+docs/staruml/        mô hình use case (23 sơ đồ) và sơ đồ lớp
 docs/thiet-ke/       tài liệu thiết kế
 ```
 
 ## Công nghệ
 
-Backend Node.js (Express) + SQLite (mô-đun `node:sqlite` có sẵn trong Node), giao diện website bằng HTML/CSS/JavaScript thuần, không cần bước biên dịch. Mô hình miền (15 lớp, 5 kiểu liệt kê), quy tắc R1–R10 và danh sách API bám theo thiết kế trong `docs/thiet-ke/`.
+Backend Node.js (Express) + SQLite (mô-đun `node:sqlite` có sẵn trong Node), giao diện website bằng HTML/CSS/JavaScript thuần, không cần bước biên dịch. Mô hình miền (17 lớp, 5 kiểu liệt kê), quy tắc R1–R12 và danh sách API bám theo thiết kế trong `docs/thiet-ke/`.

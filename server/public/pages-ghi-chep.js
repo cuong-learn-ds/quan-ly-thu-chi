@@ -1,4 +1,4 @@
-import { api, qs, h, bo, vnd, ngayVN, gioVN, homNay, thangNay, tachThang, thongBao, hopThoai, xacNhan, truong, chon, chay, bieuDoTron, chuThich, thanhTienDo, chuCai, so } from './core.js';
+import { api, qs, h, bo, vnd, ngayVN, gioVN, homNay, thangNay, tachThang, thongBao, hopThoai, xacNhan, truong, chon, chay, bieuDoTron, chuThich, thanhTienDo, chuCai, so, bieuDoCot } from './core.js';
 
 // ================= Tổng quan =================
 export async function trangTongQuan(root) {
@@ -10,6 +10,7 @@ export async function trangTongQuan(root) {
     const [t, n] = tachThang(thang);
     const d = await chay(() => api('GET', `/bao-cao/tong-quan?${qs({ thang: t, nam: n })}`));
     if (!d) return;
+    const tg = await chay(() => api('GET', `/bao-cao/theo-thoi-gian?nam=${n}`));
     const the = (nhan, v, cls = '') => h('div', { class: 'card stat' }, h('div', { class: 'label' }, nhan), h('div', { class: `val ${cls}` }, vnd(v)));
     bo(vung).append(
       h('div', { class: 'grid g4' }, the('Thu tháng này', d.tongThu, 'thu'), the('Chi tháng này', d.tongChi, 'chi'),
@@ -23,6 +24,7 @@ export async function trangTongQuan(root) {
               h('span', { class: `pill ${x.tienDo > 100 ? 'bad' : 'warn'}` }, `${x.tienDo}%`)),
             thanhTienDo(x.tienDo, x.nguongCanhBao), h('div', { class: 'small muted', style: 'margin-top:4px' }, `${vnd(x.soDaChi)} / ${vnd(x.hanMuc)}`)))
             : h('div', { class: 'empty' }, 'Không có ngân sách nào gần chạm hạn mức'))),
+      tg ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, `Thu chi theo tháng năm ${n}`), bieuDoCot(tg, n)) : null,
       h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, '5 giao dịch gần nhất'),
         d.ganDay.length ? d.ganDay.map((g) => dongGiaoDich(g)) : h('div', { class: 'empty' }, 'Chưa có giao dịch')));
   }
@@ -196,14 +198,35 @@ function quetHoaDon(dsVi, dsDm, sauKhiLuu) {
 // ================= Ví =================
 export async function trangVi(root) {
   const luoi = h('div', { class: 'grid g3' });
-  root.append(h('div', { class: 'toolbar' }, h('div', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => bieuMau(null) }, '+ Thêm ví')), luoi);
+  const lichSu = h('div', { class: 'card', style: 'margin-top:16px' });
+  let dsVi = [];
+  root.append(h('div', { class: 'toolbar' }, h('div', { class: 'sp' }), h('button', { class: 'btn', onclick: () => chuyenTien() }, 'Chuyển tiền giữa ví'), h('button', { class: 'btn primary', onclick: () => bieuMau(null) }, '+ Thêm ví')), luoi, lichSu);
   const NHAN = { TienMat: 'Tiền mặt', NganHang: 'Ngân hàng', ViDienTu: 'Ví điện tử' };
   async function tai() {
     const ds = await chay(() => api('GET', '/vi')); if (!ds) return;
+    dsVi = ds; taiLichSu();
     bo(luoi).append(...ds.map((v) => h('div', { class: 'card' }, h('div', { class: 'row', style: 'border:0;padding:0' }, h('div', { class: 'info' }, h('b', {}, v.tenVi), h('span', { class: 'pill' }, NHAN[v.loaiVi]))),
       h('div', { class: 'stat' }, h('div', { class: 'val' }, vnd(v.soDu))),
       h('div', { style: 'margin-top:12px;display:flex;gap:8px' }, h('button', { class: 'btn sm', onclick: () => bieuMau(v) }, 'Sửa'),
         h('button', { class: 'btn sm danger', onclick: async () => { if (await xacNhan(`Xóa ví "${v.tenVi}"?`) && await chay(() => api('DELETE', `/vi/${v.maVi}`)) !== undefined) { thongBao('Đã xóa ví'); tai(); } } }, 'Xóa')))));
+  }
+  async function taiLichSu() {
+    const ls = await chay(() => api('GET', '/chuyen-tien')); if (!ls) return;
+    bo(lichSu).append(h('h2', {}, 'Lịch sử chuyển tiền'), ls.length ? ls.map((c) => h('div', { class: 'row' }, h('div', { class: 'info' }, h('b', {}, `${c.tenViNguon} → ${c.tenViDich}`),
+      h('span', { class: 'small muted' }, `${ngayVN(c.ngayChuyen)} ${gioVN(c.ngayChuyen)}${c.ghiChu ? ` · ${c.ghiChu}` : ''}`)), h('b', {}, vnd(c.soTien)))) : h('div', { class: 'empty' }, 'Chưa có lần chuyển tiền nào'));
+  }
+  function chuyenTien() {
+    if (dsVi.length < 2) { thongBao('Cần ít nhất hai ví để chuyển tiền', true); return; }
+    const nguon = chon(dsVi.map((v) => [v.maVi, `${v.tenVi} (${vnd(v.soDu)})`]), dsVi[0].maVi);
+    const dich = chon(dsVi.map((v) => [v.maVi, v.tenVi]), dsVi[1].maVi);
+    const st = h('input', { type: 'number', min: 1, required: true });
+    const gc = h('input', { maxlength: 200 });
+    const dlg = hopThoai('Chuyển tiền giữa ví', h('form', { class: 'form', onsubmit: async (e) => {
+      e.preventDefault();
+      const r = await chay(() => api('POST', '/chuyen-tien', { maViNguon: +nguon.value, maViDich: +dich.value, soTien: Number(st.value), ghiChu: gc.value }), dlg);
+      if (r !== undefined) { dlg.dong(); thongBao('Đã chuyển tiền'); tai(); }
+    } }, truong('Từ ví', nguon), truong('Đến ví', dich), truong('Số tiền (₫)', st), truong('Ghi chú', gc),
+      h('div', { class: 'actions' }, h('button', { type: 'button', class: 'btn', onclick: () => dlg.dong() }, 'Hủy'), h('button', { class: 'btn primary' }, 'Chuyển'))));
   }
   function bieuMau(v) {
     const ten = h('input', { value: v?.tenVi ?? '', required: true, maxlength: 50 });
@@ -254,4 +277,40 @@ export async function trangDanhMuc(root) {
         } }, 'Xóa'))));
   }
   veTab(); await tai();
+}
+
+// ================= Giao dịch định kỳ =================
+export async function trangDinhKy(root) {
+  const vung = h('div', { class: 'card' });
+  root.append(h('div', { class: 'toolbar' }, h('div', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => bieuMau(null) }, '+ Thêm giao dịch định kỳ')),
+    h('p', { class: 'small muted' }, 'Hệ thống tự tạo giao dịch vào ngày đã chọn mỗi tháng (đúng một lần/tháng). Nếu ví không đủ số dư, tháng đó bị bỏ qua và bạn nhận một thông báo.'), vung);
+  async function tai() {
+    const ds = await chay(() => api('GET', '/giao-dich-dinh-ky')); if (!ds) return;
+    bo(vung).append(ds.length ? ds.map((g) => h('div', { class: 'row' },
+      h('div', { class: 'info' }, h('b', {}, `${g.tenDanhMuc} · ${vnd(g.soTien)}`), h('span', { class: 'small muted' }, `${g.loai} · ngày ${g.ngayTrongThang} hằng tháng · ví ${g.tenVi}${g.ghiChu ? ` · ${g.ghiChu}` : ''}`)),
+      h('span', { class: `pill ${g.dangBat ? '' : 'warn'}` }, g.dangBat ? 'Đang bật' : 'Đã tắt'),
+      h('button', { class: 'btn sm', onclick: async () => { if (await chay(() => api('PUT', `/giao-dich-dinh-ky/${g.maDinhKy}/bat-tat`, { dangBat: !g.dangBat })) !== undefined) tai(); } }, g.dangBat ? 'Tắt' : 'Bật'),
+      h('button', { class: 'btn sm', onclick: () => bieuMau(g) }, 'Sửa'),
+      h('button', { class: 'btn sm danger', onclick: async () => { if (await xacNhan('Xóa giao dịch định kỳ này?') && await chay(() => api('DELETE', `/giao-dich-dinh-ky/${g.maDinhKy}`)) !== undefined) { thongBao('Đã xóa'); tai(); } } }, 'Xóa')))
+      : h('div', { class: 'empty' }, 'Chưa có giao dịch định kỳ nào'));
+  }
+  async function bieuMau(g) {
+    const [dsVi, dsDm] = await Promise.all([api('GET', '/vi'), api('GET', '/danh-muc')]);
+    const loai = chon([['Chi', 'Chi'], ['Thu', 'Thu']], g?.loai ?? 'Chi');
+    const dm = h('select', {});
+    const napDm = () => { dm.replaceChildren(...dsDm.filter((d) => d.loai === loai.value && !d.laHeThong).map((d) => h('option', { value: d.maDanhMuc, selected: g?.maDanhMuc === d.maDanhMuc }, d.tenDanhMuc))); };
+    loai.addEventListener('change', napDm); napDm();
+    const vi = chon(dsVi.map((v) => [v.maVi, v.tenVi]), g?.maVi ?? dsVi[0]?.maVi);
+    const st = h('input', { type: 'number', min: 1, required: true, value: g?.soTien ?? '' });
+    const ngay = h('input', { type: 'number', min: 1, max: 28, required: true, value: g?.ngayTrongThang ?? 1 });
+    const gc = h('input', { maxlength: 200, value: g?.ghiChu ?? '' });
+    const dlg = hopThoai(g ? 'Sửa giao dịch định kỳ' : 'Thêm giao dịch định kỳ', h('form', { class: 'form', onsubmit: async (e) => {
+      e.preventDefault();
+      const body = { maVi: +vi.value, maDanhMuc: +dm.value, soTien: Number(st.value), loai: loai.value, ngayTrongThang: Number(ngay.value), ghiChu: gc.value };
+      const r = await chay(() => (g ? api('PUT', `/giao-dich-dinh-ky/${g.maDinhKy}`, body) : api('POST', '/giao-dich-dinh-ky', body)), dlg);
+      if (r !== undefined) { dlg.dong(); thongBao('Đã lưu'); tai(); }
+    } }, truong('Loại', loai), truong('Danh mục', dm), truong('Ví', vi), truong('Số tiền (₫)', st), truong('Ngày trong tháng (1-28)', ngay), truong('Ghi chú', gc),
+      h('div', { class: 'actions' }, h('button', { type: 'button', class: 'btn', onclick: () => dlg.dong() }, 'Hủy'), h('button', { class: 'btn primary' }, 'Lưu'))));
+  }
+  await tai();
 }

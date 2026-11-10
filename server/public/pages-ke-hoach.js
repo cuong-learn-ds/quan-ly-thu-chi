@@ -1,4 +1,4 @@
-import { api, qs, h, bo, vnd, ngayVN, homNay, thangNay, tachThang, thongBao, hopThoai, xacNhan, truong, chon, chay, bieuDoTron, chuThich, thanhTienDo, so, PHIEN } from './core.js';
+import { api, qs, h, bo, vnd, ngayVN, homNay, thangNay, tachThang, thongBao, hopThoai, xacNhan, truong, chon, chay, bieuDoTron, chuThich, thanhTienDo, so, PHIEN, bieuDoCot } from './core.js';
 
 // ================= Ngân sách (UC 3.7) =================
 export async function trangNganSach(root) {
@@ -111,10 +111,7 @@ async function tabThoiGian(vung) {
   vung.append(h('div', { class: 'toolbar' }, truong('Năm', h('input', { type: 'number', min: 2000, max: 2100, value: nam, onchange: (e) => { nam = +e.target.value; tai(); } }))), kq);
   async function tai() {
     const r = await chay(() => api('GET', `/bao-cao/theo-thoi-gian?nam=${nam}`)); if (!r) return;
-    const max = Math.max(1, ...r.flatMap((x) => [x.thu, x.chi]));
-    bo(kq).append(h('div', { class: 'legend', style: 'display:flex;gap:18px;margin-bottom:8px' }, h('div', {}, h('i', { style: 'background:var(--thu)' }), 'Thu'), h('div', {}, h('i', { style: 'background:var(--chi)' }), 'Chi')),
-      h('div', { class: 'bars', role: 'img', 'aria-label': `Thu chi theo tháng năm ${nam}` }, r.map((x) => h('div', { class: 'col', title: `Tháng ${x.thang}: thu ${vnd(x.thu)}, chi ${vnd(x.chi)}` },
-        h('div', { class: 'pair' }, h('i', { style: `height:${(x.thu / max) * 100}%;background:var(--thu)` }), h('i', { style: `height:${(x.chi / max) * 100}%;background:var(--chi)` })), `T${x.thang}`))),
+    bo(kq).append(bieuDoCot(r, nam),
       h('table', { style: 'margin-top:16px' }, h('thead', {}, h('tr', {}, h('th', {}, 'Tháng'), h('th', { class: 'r' }, 'Thu'), h('th', { class: 'r' }, 'Chi'), h('th', { class: 'r' }, 'Chênh lệch'))),
         h('tbody', {}, r.filter((x) => x.thu || x.chi).map((x) => h('tr', {}, h('td', {}, `Tháng ${x.thang}`), h('td', { class: 'r thu' }, so(x.thu)), h('td', { class: 'r chi' }, so(x.chi)), h('td', { class: 'r' }, so(x.thu - x.chi)))))));
   }

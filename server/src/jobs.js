@@ -1,4 +1,4 @@
-// Actor "Bộ hẹn giờ": nhắc ghi chép hằng ngày, nhắc mục tiêu chậm tiến độ, tổng kết cuối tháng.
+// Thành phần "Bộ hẹn giờ" của hệ thống: giao dịch định kỳ, nhắc ghi chép hằng ngày, nhắc mục tiêu chậm tiến độ, tổng kết cuối tháng.
 import { LoaiThongBao } from './domain/index.js';
 import { nap } from './services/index.js';
 
@@ -25,6 +25,9 @@ export class BoHenGio {
     return soTao;
   }
 
+  /** Tạo các giao dịch định kỳ đến hạn (mỗi lịch một lần/tháng). */
+  giaoDichDinhKy() { return this.S.dinhKy.chayDenHan(); }
+
   /** Chạy 23:00–23:59 ngày cuối tháng (idempotent theo R9). */
   tongKetThang() {
     const t = this.dongHo.bayGio(); const thang = +t.slice(5, 7); const nam = +t.slice(0, 4); const ngay = +t.slice(8, 10); const gio = +t.slice(11, 13);
@@ -34,8 +37,9 @@ export class BoHenGio {
   }
 
   batDau() {
+    try { this.giaoDichDinhKy(); } catch (e) { console.error('Lỗi bộ hẹn giờ:', e); }
     this.timer = setInterval(() => {
-      for (const f of [() => this.nhacNhoHangNgay(), () => this.tongKetThang()]) {
+      for (const f of [() => this.giaoDichDinhKy(), () => this.nhacNhoHangNgay(), () => this.tongKetThang()]) {
         try { f(); } catch (e) { console.error('Lỗi bộ hẹn giờ:', e); }
       }
     }, 60_000);

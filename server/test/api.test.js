@@ -98,7 +98,7 @@ test('R4/R5: trùng tên ví, ví còn giao dịch, danh mục mặc định, ch
   const t = await dangKy('a8@x.vn');
   assert.equal((await goi('POST', '/vi', { token: t, body: { tenVi: 'Tiền mặt', loaiVi: 'TienMat' } })).json.message, 'Tên ví đã tồn tại');
   await naptien(t, 10_000);
-  assert.equal((await goi('DELETE', `/vi/${(await viDau(t)).maVi}`, { token: t })).json.message, 'Ví còn giao dịch, không thể xóa');
+  assert.equal((await goi('DELETE', `/vi/${(await viDau(t)).maVi}`, { token: t })).json.message, 'Ví còn giao dịch hoặc lịch định kỳ, không thể xóa');
   const mac = await dm(t, 'Ăn uống', 'Chi');
   assert.equal((await goi('PUT', `/danh-muc/${mac.maDanhMuc}`, { token: t, body: { tenDanhMuc: 'X' } })).json.message, 'Không thể sửa danh mục mặc định');
   const moi = (await goi('POST', '/danh-muc', { token: t, body: { tenDanhMuc: 'Cà phê', loai: 'Chi' } })).json;

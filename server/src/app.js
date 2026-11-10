@@ -47,7 +47,7 @@ export function taoApp({ db, dongHo = new DongHoVietNam(), ocr, khoaJwt = proces
 
   api.use(dangNhapBatBuoc);
   // Các chức năng cá nhân chỉ dành cho Người dùng; các vai trò nội bộ dùng đường dẫn /admin riêng.
-  api.use(['/vi', '/danh-muc', '/giao-dich', '/hoa-don', '/ngan-sach', '/muc-tieu', '/bao-cao', '/thong-bao'], vaiTro('NguoiDung'));
+  api.use(['/vi', '/danh-muc', '/giao-dich', '/hoa-don', '/ngan-sach', '/muc-tieu', '/bao-cao', '/thong-bao', '/chuyen-tien', '/giao-dich-dinh-ky'], vaiTro('NguoiDung'));
   api.get('/tai-khoan/toi', bao((req) => S.taiKhoan.toi(req.maTk)));
   api.put('/tai-khoan/toi', bao((req) => S.taiKhoan.capNhat(req.maTk, req.body?.hoTen)));
   api.put('/tai-khoan/mat-khau', bao((req) => S.taiKhoan.doiMatKhau(req.maTk, req.body)));
@@ -67,6 +67,15 @@ export function taoApp({ db, dongHo = new DongHoVietNam(), ocr, khoaJwt = proces
   api.post('/giao-dich', bao((req) => S.giaoDich.them(req.maTk, req.body)));
   api.put('/giao-dich/:id', bao((req) => S.giaoDich.sua(req.maTk, +req.params.id, req.body)));
   api.delete('/giao-dich/:id', bao((req) => S.giaoDich.xoa(req.maTk, +req.params.id)));
+
+  api.get('/chuyen-tien', bao((req) => S.chuyenTien.danhSach(req.maTk)));
+  api.post('/chuyen-tien', bao((req) => S.chuyenTien.them(req.maTk, req.body)));
+
+  api.get('/giao-dich-dinh-ky', bao((req) => S.dinhKy.danhSach(req.maTk)));
+  api.post('/giao-dich-dinh-ky', bao((req) => S.dinhKy.tao(req.maTk, req.body)));
+  api.put('/giao-dich-dinh-ky/:id', bao((req) => S.dinhKy.sua(req.maTk, +req.params.id, req.body)));
+  api.put('/giao-dich-dinh-ky/:id/bat-tat', bao((req) => S.dinhKy.batTat(req.maTk, +req.params.id, req.body?.dangBat)));
+  api.delete('/giao-dich-dinh-ky/:id', bao((req) => S.dinhKy.xoa(req.maTk, +req.params.id)));
 
   api.post('/hoa-don/quet', upload.single('anh'), bao((req) => S.hoaDon.quet(req.file)));
 

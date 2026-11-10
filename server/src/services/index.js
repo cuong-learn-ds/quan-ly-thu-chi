@@ -2,7 +2,7 @@
 import ExcelJS from 'exceljs';
 import {
   DomainError, NotFoundError, LoaiGiaoDich, LoaiVi, LoaiThongBao, TrangThaiTaiKhoan, KetQuaCanhBao,
-  TaiKhoan, NguoiDung, QuanTriVien, NhanVienHoTro, KiemToanVien, CaiDatNhacNho, Vi, DanhMuc, GiaoDich, HoaDon, ChiTietHoaDon, NganSach, MucTieuTietKiem, BaoCaoThang,
+  TaiKhoan, NguoiDung, QuanTriVien, NhanVienHoTro, KiemToanVien, CaiDatNhacNho, Vi, DanhMuc, GiaoDich, ChuyenTien, GiaoDichDinhKy, HoaDon, ChiTietHoaDon, NganSach, MucTieuTietKiem, BaoCaoThang,
 } from '../domain/index.js';
 
 const b = (x) => !!x;
@@ -146,7 +146,8 @@ export function taoDichVu(ctx) {
     },
     xoa(maTk, id) {
       this.layCuaToi(maTk, id);
-      if (db.get('SELECT 1 x FROM GiaoDich WHERE maVi=?', id)) throw new DomainError('Ví còn giao dịch, không thể xóa'); // R4
+      if (db.get('SELECT 1 x FROM GiaoDich WHERE maVi=?', id) || db.get('SELECT 1 x FROM ChuyenTien WHERE maViNguon=? OR maViDich=?', id, id)
+        || db.get('SELECT 1 x FROM GiaoDichDinhKy WHERE maVi=?', id)) throw new DomainError('Ví còn giao dịch hoặc lịch định kỳ, không thể xóa'); // R4
       db.run('DELETE FROM Vi WHERE maVi=?', id);
     },
     luuSoDu: (v) => db.run('UPDATE Vi SET soDu=? WHERE maVi=?', v.soDu, v.maVi),
@@ -429,6 +430,86 @@ export function taoDichVu(ctx) {
       const matHang = (kq.matHang ?? []).map((m) => ({ ten: m.ten, soLuong: m.soLuong || 1, donGia: m.donGia || 0 }));
       const tong = kq.tongTien ?? matHang.reduce((s, m) => s + m.soLuong * m.donGia, 0);
       return { anhUrl: url, tenCuaHang: kq.tenCuaHang ?? null, ngay: kq.ngay ?? null, tongTien: tong, matHang };
+    },
+  };
+
+  // ============ Chuyển tiền giữa các ví (UC 2.10, 3.13) ============
+  S.chuyenTien = {
+    danhSach: (maTk) => db.all(`SELECT c.*, n.tenVi tenViNguon, d.tenVi tenViDich FROM ChuyenTien c JOIN Vi n ON n.maVi=c.maViNguon JOIN Vi d ON d.maVi=c.maViDich
+      WHERE c.maTaiKhoan=? ORDER BY c.ngayChuyen DESC, c.maChuyenTien DESC LIMIT 50`, maTk),
+    /** R11 + R1 + R2: trừ ví nguồn, cộng ví đích, ghi lịch sử trong MỘT transaction. */
+    them(maTk, { maViNguon, maViDich, soTien: st, ghiChu } = {}) {
+      return db.giaoDich(() => {
+        const nguon = S.vi.layCuaToi(maTk, Number(maViNguon));
+        const dich = S.vi.layCuaToi(maTk, Number(maViDich));
+        const ct = ChuyenTien.tao(maTk, nguon, dich, Number(st), dongHo.bayGio(), ghiChu?.trim() || null);
+        ct.thucHien();
+        S.vi.luuSoDu(nguon); S.vi.luuSoDu(dich);
+        const { id } = db.run('INSERT INTO ChuyenTien (maTaiKhoan, maViNguon, maViDich, soTien, ngayChuyen, ghiChu) VALUES (?,?,?,?,?,?)', maTk, nguon.maVi, dich.maVi, ct.soTien, ct.ngayChuyen, ct.ghiChu);
+        return { maChuyenTien: id, maViNguon: nguon.maVi, tenViNguon: nguon.tenVi, soDuNguon: nguon.soDu, maViDich: dich.maVi, tenViDich: dich.tenVi, soDuDich: dich.soDu, soTien: ct.soTien, ngayChuyen: ct.ngayChuyen, ghiChu: ct.ghiChu };
+      });
+    },
+  };
+
+  // ============ Giao dịch định kỳ (UC 2.11, 3.14) ============
+  const napDinhKy = (r) => (r ? new GiaoDichDinhKy({ ...r, dangBat: b(r.dangBat) }) : null);
+  const dtoDinhKy = (r) => ({ maDinhKy: r.maDinhKy, maVi: r.maVi, tenVi: r.tenVi, maDanhMuc: r.maDanhMuc, tenDanhMuc: r.tenDanhMuc, soTien: r.soTien, loai: r.loai,
+    ngayTrongThang: r.ngayTrongThang, ghiChu: r.ghiChu, dangBat: b(r.dangBat), thangDaChay: r.thangDaChay });
+  const SEL_DK = 'SELECT g.*, v.tenVi, d.tenDanhMuc FROM GiaoDichDinhKy g JOIN Vi v ON v.maVi=g.maVi JOIN DanhMuc d ON d.maDanhMuc=g.maDanhMuc';
+  S.dinhKy = {
+    _lay(maTk, id) {
+      const g = napDinhKy(db.get('SELECT * FROM GiaoDichDinhKy WHERE maDinhKy=? AND maTaiKhoan=?', id, maTk));
+      if (!g) throw new NotFoundError(); // R10
+      return g;
+    },
+    _dto: (id) => dtoDinhKy(db.get(`${SEL_DK} WHERE g.maDinhKy=?`, id)),
+    danhSach: (maTk) => db.all(`${SEL_DK} WHERE g.maTaiKhoan=? ORDER BY g.maDinhKy`, maTk).map(dtoDinhKy),
+    _doc(maTk, r) {
+      const vi = S.vi.layCuaToi(maTk, Number(r.maVi));
+      const dm = S.danhMuc.layDungDuoc(maTk, Number(r.maDanhMuc));
+      const st = Number(r.soTien); const ngay = Number(r.ngayTrongThang);
+      GiaoDichDinhKy.kiemTra(st, ngay, r.loai, dm);
+      return { vi, dm, st, ngay };
+    },
+    tao(maTk, r = {}) {
+      return db.giaoDich(() => {
+        const { vi, dm, st, ngay } = this._doc(maTk, r);
+        const { id } = db.run('INSERT INTO GiaoDichDinhKy (maTaiKhoan, maVi, maDanhMuc, soTien, loai, ngayTrongThang, ghiChu, dangBat, thangDaChay, ngayTao) VALUES (?,?,?,?,?,?,?,1,NULL,?)',
+          maTk, vi.maVi, dm.maDanhMuc, st, r.loai, ngay, r.ghiChu?.trim() || null, dongHo.bayGio());
+        return this._dto(id);
+      });
+    },
+    sua(maTk, id, r = {}) {
+      return db.giaoDich(() => {
+        this._lay(maTk, id);
+        const { vi, dm, st, ngay } = this._doc(maTk, r);
+        db.run('UPDATE GiaoDichDinhKy SET maVi=?, maDanhMuc=?, soTien=?, loai=?, ngayTrongThang=?, ghiChu=? WHERE maDinhKy=?', vi.maVi, dm.maDanhMuc, st, r.loai, ngay, r.ghiChu?.trim() || null, id);
+        return this._dto(id);
+      });
+    },
+    batTat(maTk, id, dangBat) { this._lay(maTk, id); db.run('UPDATE GiaoDichDinhKy SET dangBat=? WHERE maDinhKy=?', +b(dangBat), id); return this._dto(id); },
+    xoa(maTk, id) { this._lay(maTk, id); db.run('DELETE FROM GiaoDichDinhKy WHERE maDinhKy=?', id); },
+    /** R12: do bộ hẹn giờ gọi. Mỗi lịch đến hạn tạo đúng một giao dịch/tháng; thiếu số dư thì bỏ qua tháng đó và báo cho người dùng. Trả số giao dịch đã tạo. */
+    chayDenHan() {
+      const homNay = dongHo.homNay(); let soTao = 0;
+      for (const r of db.all('SELECT * FROM GiaoDichDinhKy WHERE dangBat=1')) {
+        const g = napDinhKy(r);
+        if (!g.denHan(homNay)) continue;
+        const ky = homNay.slice(0, 7);
+        try {
+          db.giaoDich(() => {
+            S.giaoDich.them(g.maTaiKhoan, { maVi: g.maVi, maDanhMuc: g.maDanhMuc, soTien: g.soTien, loai: g.loai, ngayGiaoDich: g.ngayPhatSinh(homNay), ghiChu: `[Định kỳ] ${g.ghiChu ?? ''}`.trim() });
+            db.run('UPDATE GiaoDichDinhKy SET thangDaChay=? WHERE maDinhKy=?', ky, g.maDinhKy);
+          });
+          soTao++;
+        } catch (e) {
+          db.giaoDich(() => {
+            db.run('UPDATE GiaoDichDinhKy SET thangDaChay=? WHERE maDinhKy=?', ky, g.maDinhKy);
+            S.thongBao.tao(g.maTaiKhoan, LoaiThongBao.DinhKy, `Không tạo được giao dịch định kỳ ${fmt(g.soTien)} ₫ tháng ${ky.slice(5)}/${ky.slice(0, 4)}: ${e.message}`);
+          });
+        }
+      }
+      return soTao;
     },
   };
 

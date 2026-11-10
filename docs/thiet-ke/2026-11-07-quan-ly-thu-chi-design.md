@@ -79,6 +79,8 @@ quan-ly-thu-chi/
 - **Service:** tải thực thể → gọi phương thức domain → lưu trong một transaction → tạo thông báo nếu cần.
 - **Controller:** nhận DTO, gọi service, trả DTO. Không chứa logic.
 
+> **Cập nhật 2026-11-10 (chức năng bổ sung):** thêm ba chức năng: chuyển tiền giữa các ví (lớp `ChuyenTien`, quy tắc R11), giao dịch định kỳ hằng tháng (lớp `GiaoDichDinhKy`, quy tắc R12, do bộ hẹn giờ tạo) và biểu đồ cột thu chi 12 tháng trên trang Tổng quan. Mô hình miền có 17 lớp, `LoaiThongBao` thêm giá trị `DinhKy`. Các mục 3, 4, 5, 6, 7, 9, 11 bên dưới đã ghi thêm phần này.
+
 ## 3. Mô hình miền
 
 Mô hình miền theo sơ đồ lớp Hình 4.1, có 1 điều chỉnh. Danh sách lớp:
@@ -94,7 +96,10 @@ Mô hình miền theo sơ đồ lớp Hình 4.1, có 1 điều chỉnh. Danh sá
   - `NganSach` thuộc `NguoiDung` và gắn với một `DanhMuc`.
   - `MucTieuTietKiem` thuộc `NguoiDung`, liên kết 0..1 với các `GiaoDich` nạp tiền.
 - **Đầu ra:** `ThongBao` và `BaoCaoThang` thuộc `NguoiDung`.
-- **Enum:** `LoaiGiaoDich {Thu, Chi}`, `LoaiVi {TienMat, NganHang, ViDienTu}`, `TrangThaiTaiKhoan {HoatDong, BiKhoa}`, `LoaiThongBao {NhacGhiChep, CanhBaoNganSach, NhacMucTieu, TongKetThang}`.
+- **Bổ sung (2026-11-10):**
+  - `ChuyenTien` thuộc `NguoiDung`, nối hai `Vi` (ví nguồn và ví đích, khác nhau).
+  - `GiaoDichDinhKy` thuộc `NguoiDung`, gắn với một `Vi` và một `DanhMuc`; có `ngayTrongThang` (1–28), `dangBat` và `thangDaChay`.
+- **Enum:** `LoaiGiaoDich {Thu, Chi}`, `LoaiVi {TienMat, NganHang, ViDienTu}`, `TrangThaiTaiKhoan {HoatDong, BiKhoa}`, `LoaiThongBao {NhacGhiChep, CanhBaoNganSach, NhacMucTieu, TongKetThang, HoTro, DinhKy}`.
 
 **Điều chỉnh mô hình (cập nhật vào file StarUML khi dựng code):**
 1. `NganSach` thêm `daCanhBaoNguong: bool` và `daCanhBaoVuot: bool`, phục vụ quy tắc R6.
@@ -117,6 +122,8 @@ Kiểu tiền là `decimal(18,2)`, đơn vị VND.
 | R8 | Tài khoản `BiKhoa` không đăng nhập được, và token cũ bị từ chối ở request kế tiếp. Quản trị viên không tự khóa chính mình | `TaiKhoan.DangNhap`, `QuanTriVien.KhoaTaiKhoan`, middleware |
 | R9 | Tổng kết tháng có tính idempotent: mỗi (người dùng, tháng, năm) chỉ có một `BaoCaoThang`; chạy lại thì cập nhật số liệu, không tạo bản trùng, không gửi thông báo trùng | `BaoCaoService`, `BaoCaoThang.LapBaoCao` |
 | R10 | Người dùng chỉ truy cập được dữ liệu của chính mình. Truy cập dữ liệu người khác trả 404 | Service (lọc theo `maTaiKhoan` từ token) |
+| R11 | Chuyển tiền: ví nguồn và ví đích phải khác nhau, số tiền > 0 (R1), ví nguồn đủ số dư (R2). Trừ nguồn, cộng đích và ghi lịch sử trong một transaction; không tạo giao dịch thu/chi nên không vào báo cáo | `ChuyenTien` (domain) |
+| R12 | Giao dịch định kỳ: ngày trong tháng từ 1 đến 28; mỗi lịch tạo đúng một giao dịch mỗi tháng (đánh dấu `thangDaChay`); nếu thiếu số dư thì bỏ qua tháng đó và gửi thông báo `DinhKy`, không báo lặp. Ví còn lịch định kỳ thì không xóa được (R4) | `GiaoDichDinhKy` (domain), bộ hẹn giờ |
 
 Mọi thao tác nhiều bước (ví dụ giao dịch + ví + cảnh báo) chạy trong **một transaction CSDL**.
 
@@ -126,6 +133,8 @@ Mọi thao tác nhiều bước (ví dụ giao dịch + ví + cảnh báo) chạ
 |---|---|---|
 | `TaiKhoanService` | 2.1, 3.1, 3.2 | DangKy (tạo `NguoiDung` + ví "Tiền mặt" + `CaiDatNhacNho` mặc định), DangNhap, DoiMatKhau, CapNhatThongTin |
 | `ViService` | 2.2, 3.3 | DanhSach, Them, Sua, Xoa |
+| `ChuyenTienService` | 2.10, 3.13 | DanhSach, Them (R11) |
+| `DinhKyService` | 2.11, 3.14 | DanhSach, Tao, Sua, BatTat, Xoa, ChayDenHan (do bộ hẹn giờ gọi, R12) |
 | `DanhMucService` | 2.3, 3.4 | DanhSach (mặc định + của mình), Them, Sua, Xoa(chuyenSang) |
 | `GiaoDichService` | 2.4, 3.5 | Them (kèm hóa đơn nếu có), Sua, Xoa, TimKiem (lọc + phân trang 20/trang) |
 | `HoaDonService` | 3.6 | Quet(ảnh) → bản nháp (chưa lưu) |
@@ -148,6 +157,9 @@ GET    /danh-muc?loai            POST /danh-muc PUT /danh-muc/{id}
 DELETE /danh-muc/{id}?chuyenSang={id}
 GET    /giao-dich?tu&den&loai&viId&danhMucId&q&trang
 POST   /giao-dich   (kèm khối hoaDon tùy chọn)   PUT /giao-dich/{id}   DELETE /giao-dich/{id}
+GET    /chuyen-tien              POST /chuyen-tien  {maViNguon, maViDich, soTien, ghiChu?}
+GET    /giao-dich-dinh-ky        POST /giao-dich-dinh-ky   PUT /giao-dich-dinh-ky/{id}
+PUT    /giao-dich-dinh-ky/{id}/bat-tat {dangBat}      DELETE /giao-dich-dinh-ky/{id}
 POST   /hoa-don/quet            multipart ảnh → bản nháp {anhUrl, tenCuaHang, ngay, tongTien, matHang[]}
 GET    /ngan-sach?thang&nam      POST /ngan-sach  PUT /ngan-sach/{id}  DELETE /ngan-sach/{id}
 GET    /muc-tieu                 POST /muc-tieu   PUT /muc-tieu/{id}   DELETE /muc-tieu/{id}
@@ -195,6 +207,8 @@ Bộ hẹn giờ gồm hai `BackgroundService` chạy cùng tiến trình backen
 
 Endpoint `POST /admin/chay-tong-ket` gọi cùng hàm này để demo mà không phải chờ đến cuối tháng.
 
+**Giao dịch định kỳ (bổ sung 2026-11-10):** mỗi phút bộ hẹn giờ gọi `DinhKyService.ChayDenHan()` (và gọi một lần khi khởi động). Với mỗi lịch đang bật, đã tới `ngayTrongThang` và chưa chạy trong tháng này, hệ thống tạo giao dịch ngày `ngayTrongThang` lúc 08:00 qua `GiaoDichService.Them` rồi đặt `thangDaChay`. Nếu lỗi (ví thiếu số dư) thì chỉ đánh dấu đã xử lý tháng đó và gửi một thông báo loại `DinhKy` (R12).
+
 ## 8. Quét hóa đơn
 
 1. Frontend gửi ảnh lên `POST /hoa-don/quet`.
@@ -233,6 +247,7 @@ frontend/lib/
 2. **Tổng quan:**
    - thu, chi, chênh lệch tháng này;
    - biểu đồ tròn chi theo danh mục;
+   - biểu đồ cột thu chi 12 tháng của năm đang chọn;
    - tổng số dư các ví;
    - ngân sách ≥ 80%;
    - 5 giao dịch gần nhất.
@@ -242,7 +257,8 @@ frontend/lib/
    - hộp thoại thêm/sửa;
    - nút Quét hóa đơn.
 4. **Xác nhận hóa đơn:** ảnh bill bên cạnh bảng mặt hàng sửa được; chọn danh mục và ví.
-5. **Ví.**
+5. **Ví:** thẻ ví, nút Chuyển tiền giữa ví (chọn ví nguồn, ví đích, số tiền) và lịch sử chuyển tiền.
+   - **Giao dịch định kỳ (menu Định kỳ):** danh sách lịch, bật/tắt, thêm/sửa/xóa; chọn loại, danh mục, ví, số tiền, ngày 1–28.
 6. **Danh mục:** 2 tab Thu / Chi; khi xóa thì hỏi danh mục chuyển sang.
 7. **Ngân sách:** chọn tháng; thanh tiến độ đổi màu xanh < 80% ≤ vàng ≤ 100% < đỏ.
 8. **Mục tiêu tiết kiệm:** thẻ tiến độ, nút nạp tiền, số tiền cần để dành mỗi tháng.
@@ -296,6 +312,10 @@ Dữ liệu demo được nạp tự động khi CSDL còn trống, ở môi tr�
   - tài khoản bị khóa → 401;
   - quét hóa đơn → lưu;
   - chạy tổng kết.
+- **Kiểm thử chức năng bổ sung (`test/tinh-nang-moi.test.js`):**
+  - R11: cùng ví, số tiền ≤ 0, thiếu số dư, ví người khác (404); tổng số dư không đổi; không vào báo cáo thu chi; ví còn lịch sử không xóa được;
+  - R12: ngày 1–28, đến hạn đúng một lần mỗi tháng, tắt thì không chạy, thiếu số dư thì bỏ qua và báo một lần, sửa/xóa, không đụng lịch của người khác;
+  - vai trò khác `NguoiDung` nhận 403 ở hai nhóm route mới.
 - **Kịch bản kiểm thử thủ công:**
   - Mỗi use case mức 3 có một bảng gồm bước, dữ liệu, kết quả mong đợi và kết quả thực tế.
   - Dùng làm chương Kiểm thử của báo cáo.

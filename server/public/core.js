@@ -113,6 +113,15 @@ export function bieuDoTron(ds, kichThuoc = 180) {
 export const chuThich = (ds) => h('div', { class: 'legend' }, ds.map((x, i) =>
   h('div', {}, h('i', { style: `background:${x.mauSac || MAU[i % MAU.length]}` }, ''), h('span', {}, x.tenDanhMuc), h('span', { class: 'muted small' }, `${x.tyLe}% · ${vnd(x.soTien)}`))));
 
+/** Biểu đồ cột thu/chi 12 tháng (dùng ở Tổng quan và Báo cáo theo thời gian). */
+export function bieuDoCot(r, nam) {
+  const max = Math.max(1, ...r.flatMap((x) => [x.thu, x.chi]));
+  return h('div', {},
+    h('div', { class: 'legend', style: 'display:flex;gap:18px;margin-bottom:8px' }, h('div', {}, h('i', { style: 'background:var(--thu)' }), 'Thu'), h('div', {}, h('i', { style: 'background:var(--chi)' }), 'Chi')),
+    h('div', { class: 'bars', role: 'img', 'aria-label': `Thu chi theo tháng năm ${nam}` }, r.map((x) => h('div', { class: 'col', title: `Tháng ${x.thang}: thu ${vnd(x.thu)}, chi ${vnd(x.chi)}` },
+      h('div', { class: 'pair' }, h('i', { style: `height:${(x.thu / max) * 100}%;background:var(--thu)` }), h('i', { style: `height:${(x.chi / max) * 100}%;background:var(--chi)` })), `T${x.thang}`))));
+}
+
 export function mauTienDo(td, nguong = 80) { return td > 100 ? 'var(--bad)' : td >= nguong ? 'var(--warn)' : 'var(--ok)'; }
 export const thanhTienDo = (td, nguong) => h('div', { class: 'bar', role: 'progressbar', 'aria-valuenow': Math.round(td), 'aria-valuemin': 0, 'aria-valuemax': 100 },
   h('i', { style: `width:${Math.min(100, td)}%;background:${mauTienDo(td, nguong)}` }));

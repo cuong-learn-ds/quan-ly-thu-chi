@@ -10,7 +10,7 @@ export const LoaiGiaoDich = Object.freeze({ Thu: 'Thu', Chi: 'Chi' });
 export const LoaiVi = Object.freeze({ TienMat: 'TienMat', NganHang: 'NganHang', ViDienTu: 'ViDienTu' });
 export const TrangThaiTaiKhoan = Object.freeze({ HoatDong: 'HoatDong', BiKhoa: 'BiKhoa' });
 export const LoaiThongBao = Object.freeze({
-  NhacGhiChep: 'NhacGhiChep', CanhBaoNganSach: 'CanhBaoNganSach', NhacMucTieu: 'NhacMucTieu', TongKetThang: 'TongKetThang', HoTro: 'HoTro',
+  NhacGhiChep: 'NhacGhiChep', CanhBaoNganSach: 'CanhBaoNganSach', NhacMucTieu: 'NhacMucTieu', TongKetThang: 'TongKetThang', HoTro: 'HoTro', DinhKy: 'DinhKy',
 });
 export const KetQuaCanhBao = Object.freeze({ KhongCo: 'KhongCo', DatNguong: 'DatNguong', Vuot: 'Vuot' });
 
@@ -147,6 +147,37 @@ export class GiaoDich {
     Object.assign(this, { vi, maVi: vi.maVi, danhMuc: dm, maDanhMuc: dm.maDanhMuc, soTien, loai, ngayGiaoDich: ngay, ghiChu: ghiChu ?? null });
     this.ghiNhan();
   }
+}
+
+/** Chuyển tiền giữa hai ví của cùng một người dùng. Không phải thu/chi nên không vào báo cáo thu chi. */
+export class ChuyenTien {
+  constructor(init = {}) {
+    Object.assign(this, { maChuyenTien: 0, maTaiKhoan: 0, maViNguon: 0, maViDich: 0, soTien: 0, ngayChuyen: '', ghiChu: null, viNguon: null, viDich: null }, init);
+  }
+  static tao(maTaiKhoan, viNguon, viDich, soTien, ngay, ghiChu) {
+    if (!laSoNguyenDuong(soTien)) throw new DomainError('Số tiền phải lớn hơn 0'); // R1
+    if (viNguon.maVi === viDich.maVi) throw new DomainError('Ví nguồn và ví đích phải khác nhau'); // R11
+    return new ChuyenTien({ maTaiKhoan, viNguon, viDich, maViNguon: viNguon.maVi, maViDich: viDich.maVi, soTien, ngayChuyen: ngay, ghiChu: ghiChu ?? null });
+  }
+  /** R2 (ví nguồn đủ số dư) nằm trong truTien; lỗi thì dịch vụ rollback. */
+  thucHien() { this.viNguon.truTien(this.soTien); this.viDich.congTien(this.soTien); }
+}
+
+/** Giao dịch lặp lại hằng tháng vào một ngày cố định (1-28), do bộ hẹn giờ tự tạo. */
+export class GiaoDichDinhKy {
+  constructor(init = {}) {
+    Object.assign(this, { maDinhKy: 0, maTaiKhoan: 0, maVi: 0, maDanhMuc: 0, soTien: 0, loai: LoaiGiaoDich.Chi, ngayTrongThang: 1, ghiChu: null, dangBat: true, thangDaChay: null, ngayTao: '' }, init);
+  }
+  static kiemTra(soTien, ngayTrongThang, loai, danhMuc) {
+    if (!laSoNguyenDuong(soTien)) throw new DomainError('Số tiền phải lớn hơn 0'); // R1
+    if (!Number.isInteger(ngayTrongThang) || ngayTrongThang < 1 || ngayTrongThang > 28) throw new DomainError('Ngày trong tháng phải từ 1 đến 28'); // R12
+    if (danhMuc.loai !== loai) throw new DomainError('Danh mục không đúng loại giao dịch');
+  }
+  /** Đến hạn khi đang bật, đã tới ngày trong tháng và tháng này chưa chạy (mỗi tháng đúng một lần). */
+  denHan(homNay) {
+    return this.dangBat && +homNay.slice(8, 10) >= this.ngayTrongThang && this.thangDaChay !== homNay.slice(0, 7);
+  }
+  ngayPhatSinh(homNay) { return `${homNay.slice(0, 7)}-${String(this.ngayTrongThang).padStart(2, '0')}T08:00:00`; }
 }
 
 // ---------------- Kế hoạch: ngân sách, mục tiêu ----------------
