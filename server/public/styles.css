@@ -94,6 +94,11 @@ td.r, th.r { text-align: right; }
 .auth .card { width: min(420px, 100%); padding: 30px; } .auth .brand { padding: 0 0 18px; }
 .auth .form { margin-top: 14px; } .auth .hint { margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: var(--bg); font-size: 13px; color: var(--muted); }
 
+.delta { font-size: 12.5px; margin-top: 6px; font-weight: 600; }
+.quick { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; } .quick .btn { text-decoration: none; color: var(--text); } .quick .btn.primary { color: #fff; }
+.card.stat { border-left: 4px solid var(--primary); }
+.grid.g4 .card.stat:nth-child(2) { border-left-color: var(--chi); } .grid.g4 .card.stat:nth-child(1) { border-left-color: var(--thu); }
+
 /* ----- thông báo ----- */
 .noti { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
 .noti.un { font-weight: 600; } .noti .info { flex: 1; } .noti i { width: 9px; height: 9px; border-radius: 50%; background: var(--primary); margin-top: 7px; flex: none; } .noti.rd i { background: transparent; }

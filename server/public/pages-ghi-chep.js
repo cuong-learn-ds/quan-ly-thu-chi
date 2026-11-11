@@ -6,24 +6,55 @@ export async function trangTongQuan(root) {
   const vung = h('div');
   const o = h('input', { type: 'month', value: thang, 'aria-label': 'Chọn tháng', onchange: (e) => { thang = e.target.value || thangNay(); tai(); } });
   root.append(h('div', { class: 'toolbar' }, truong('Tháng', o)), vung);
+  const thangTruoc = (v) => { const [t, n] = tachThang(v); return t === 1 ? `${n - 1}-12` : `${n}-${String(t - 1).padStart(2, '0')}`; };
+  /** Mũi tên so với tháng trước; tốt = true nghĩa là tăng là điều tốt (thu), false nghĩa là giảm mới tốt (chi). */
+  const soVoiTruoc = (hienTai, truoc, tangLaTot) => {
+    if (!truoc) return h('div', { class: 'delta muted' }, 'Tháng trước chưa có dữ liệu');
+    const pc = Math.round(((hienTai - truoc) / truoc) * 100);
+    if (pc === 0) return h('div', { class: 'delta muted' }, '= so với tháng trước');
+    const tot = (pc > 0) === tangLaTot;
+    return h('div', { class: `delta ${tot ? 'thu' : 'chi'}` }, `${pc > 0 ? '▲' : '▼'} ${Math.abs(pc)}% so với tháng trước`);
+  };
   async function tai() {
-    const [t, n] = tachThang(thang);
-    const d = await chay(() => api('GET', `/bao-cao/tong-quan?${qs({ thang: t, nam: n })}`));
+    const [t, n] = tachThang(thang); const [tt, nt] = tachThang(thangTruoc(thang));
+    const [d, truoc, dsVi, dsMt, tg] = await Promise.all([
+      chay(() => api('GET', `/bao-cao/tong-quan?${qs({ thang: t, nam: n })}`)),
+      chay(() => api('GET', `/bao-cao/tong-quan?${qs({ thang: tt, nam: nt })}`)),
+      chay(() => api('GET', '/vi')), chay(() => api('GET', '/muc-tieu')), chay(() => api('GET', `/bao-cao/theo-thoi-gian?nam=${n}`))]);
     if (!d) return;
-    const tg = await chay(() => api('GET', `/bao-cao/theo-thoi-gian?nam=${n}`));
-    const the = (nhan, v, cls = '') => h('div', { class: 'card stat' }, h('div', { class: 'label' }, nhan), h('div', { class: `val ${cls}` }, vnd(v)));
+    const tongViDuong = Math.max(1, ...(dsVi ?? []).map((v) => Math.abs(v.soDu)));
+    const tyLeTietKiem = d.tongThu > 0 ? Math.round((d.chenhLech / d.tongThu) * 100) : null;
+    const the = (nhan, v, cls = '', phu = null) => h('div', { class: 'card stat' }, h('div', { class: 'label' }, nhan), h('div', { class: `val ${cls}` }, vnd(v)), phu);
+    const dsMucTieu = (dsMt ?? []).filter((m) => !m.daHoanThanh).slice(0, 3);
     bo(vung).append(
-      h('div', { class: 'grid g4' }, the('Thu tháng này', d.tongThu, 'thu'), the('Chi tháng này', d.tongChi, 'chi'),
-        the('Chênh lệch', d.chenhLech, d.chenhLech < 0 ? 'bad' : ''), the('Tổng số dư các ví', d.tongSoDu)),
+      h('div', { class: 'quick' },
+        h('a', { class: 'btn primary', href: '#/giao-dich' }, '+ Thêm giao dịch'), h('a', { class: 'btn', href: '#/vi' }, 'Chuyển tiền giữa ví'),
+        h('a', { class: 'btn', href: '#/ngan-sach' }, 'Ngân sách'), h('a', { class: 'btn', href: '#/muc-tieu' }, 'Mục tiêu tiết kiệm'), h('a', { class: 'btn', href: '#/dinh-ky' }, 'Giao dịch định kỳ')),
+      h('div', { class: 'grid g4' },
+        the('Thu tháng này', d.tongThu, 'thu', truoc ? soVoiTruoc(d.tongThu, truoc.tongThu, true) : null),
+        the('Chi tháng này', d.tongChi, 'chi', truoc ? soVoiTruoc(d.tongChi, truoc.tongChi, false) : null),
+        the('Chênh lệch', d.chenhLech, d.chenhLech < 0 ? 'bad' : '', h('div', { class: 'delta muted' }, tyLeTietKiem === null ? 'Chưa có khoản thu trong tháng' : `Còn lại ${tyLeTietKiem}% thu nhập`)),
+        the('Tổng số dư các ví', d.tongSoDu, '', h('div', { class: 'delta muted' }, `${(dsVi ?? []).length} ví`))),
       h('div', { class: 'grid g2', style: 'margin-top:16px' },
         h('div', { class: 'card' }, h('h2', {}, 'Chi theo danh mục'),
           d.chiTheoDanhMuc.length ? h('div', { class: 'donut' }, bieuDoTron(d.chiTheoDanhMuc), chuThich(d.chiTheoDanhMuc)) : h('div', { class: 'empty' }, 'Chưa có khoản chi nào trong tháng này')),
+        h('div', { class: 'card' }, h('h2', {}, 'Số dư theo ví'),
+          (dsVi ?? []).length ? dsVi.map((v) => h('div', { style: 'margin-bottom:14px' },
+            h('div', { class: 'row', style: 'padding:0 0 6px;border:0' }, h('b', { class: 'info' }, v.tenVi), h('b', {}, vnd(v.soDu))),
+            h('div', { class: 'bar' }, h('i', { style: `width:${Math.max(2, (Math.abs(v.soDu) / tongViDuong) * 100)}%;background:var(--primary)` })))) : h('div', { class: 'empty' }, 'Chưa có ví'))),
+      h('div', { class: 'grid g2', style: 'margin-top:16px' },
         h('div', { class: 'card' }, h('h2', {}, 'Ngân sách sắp hoặc đã vượt'),
           d.sapVuot.length ? d.sapVuot.map((x) => h('div', { style: 'margin-bottom:14px' },
             h('div', { class: 'row', style: 'padding:0 0 6px;border:0' }, h('b', { class: 'info' }, x.tenDanhMuc),
               h('span', { class: `pill ${x.tienDo > 100 ? 'bad' : 'warn'}` }, `${x.tienDo}%`)),
             thanhTienDo(x.tienDo, x.nguongCanhBao), h('div', { class: 'small muted', style: 'margin-top:4px' }, `${vnd(x.soDaChi)} / ${vnd(x.hanMuc)}`)))
-            : h('div', { class: 'empty' }, 'Không có ngân sách nào gần chạm hạn mức'))),
+            : h('div', { class: 'empty' }, 'Không có ngân sách nào gần chạm hạn mức')),
+        h('div', { class: 'card' }, h('h2', {}, 'Mục tiêu tiết kiệm'),
+          dsMucTieu.length ? dsMucTieu.map((m) => h('div', { style: 'margin-bottom:14px' },
+            h('div', { class: 'row', style: 'padding:0 0 6px;border:0' }, h('b', { class: 'info' }, m.tenMucTieu), h('span', { class: `pill ${m.chamTienDo ? 'warn' : ''}` }, m.chamTienDo ? 'Chậm tiến độ' : `${m.tienDo}%`)),
+            h('div', { class: 'bar' }, h('i', { style: `width:${Math.min(100, m.tienDo)}%;background:${m.chamTienDo ? 'var(--warn)' : 'var(--ok)'}` })),
+            h('div', { class: 'small muted', style: 'margin-top:4px' }, `${vnd(m.soTienHienTai)} / ${vnd(m.soTienMucTieu)} · hạn ${ngayVN(m.hanChot)}`)))
+            : h('div', { class: 'empty' }, 'Chưa có mục tiêu đang thực hiện'))),
       tg ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, `Thu chi theo tháng năm ${n}`), bieuDoCot(tg, n)) : null,
       h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, '5 giao dịch gần nhất'),
         d.ganDay.length ? d.ganDay.map((g) => dongGiaoDich(g)) : h('div', { class: 'empty' }, 'Chưa có giao dịch')));

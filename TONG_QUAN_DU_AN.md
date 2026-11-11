@@ -127,6 +127,6 @@ Xóa thư mục `server/data` để làm lại dữ liệu từ đầu. Đặt b
 |---|---|---|
 | Chuyển tiền giữa các ví | Trừ ví nguồn, cộng ví đích, ghi `ChuyenTien`; không tính vào thu chi; quy tắc R11 | `ChuyenTien` (domain), `S.chuyenTien`, `POST/GET /api/chuyen-tien`, trang Ví |
 | Giao dịch định kỳ | Lịch thu/chi hằng tháng, ngày 1–28; bộ hẹn giờ tạo đúng một giao dịch/tháng; thiếu số dư thì bỏ qua và báo; quy tắc R12 | `GiaoDichDinhKy` (domain), `S.dinhKy`, `/api/giao-dich-dinh-ky`, `jobs.js`, trang Định kỳ |
-| Biểu đồ cột thu chi 12 tháng trên Tổng quan | Dùng lại API `/bao-cao/theo-thoi-gian`; biểu đồ tròn đã có từ trước | `bieuDoCot` trong `core.js` |
+| Dashboard Tổng quan | So sánh thu/chi với tháng trước, nút thao tác nhanh, số dư theo ví, mục tiêu tiết kiệm, biểu đồ cột 12 tháng (dùng lại các API có sẵn, không thêm API mới) | `trangTongQuan` trong `pages-ghi-chep.js`, `bieuDoCot` trong `core.js` |
 
 Tài liệu đã cập nhật theo chức năng bổ sung: mô hình StarUML (thêm Hình 5 và Hình 4.2, hai lớp mới, giá trị `DinhKy` của `LoaiThongBao`), ảnh `docs/hinh-bao-cao/uc_bo_sung.png` và `lop_bo_sung.png`, báo cáo Word (Phụ lục D, số liệu kiểm thử 45/45) và tài liệu thiết kế (R11, R12, API, bộ hẹn giờ). File PDF của báo cáo chưa xuất lại, cần xuất lại từ Word sau khi cập nhật mục lục.
