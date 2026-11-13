@@ -54,6 +54,7 @@ async function capNhatChuong() {
 }
 
 function dangXuat() { PHIEN.xoa(); clearInterval(timerChuong); location.hash = '#/dang-nhap'; }
+document.addEventListener('dang-xuat', dangXuat);
 
 function veKhung(khoa) {
   const menu = menuCua();

@@ -166,7 +166,8 @@ export async function trangTaiKhoan(root) {
     h('div', { class: 'card' }, h('h2', {}, 'Đổi mật khẩu'), h('form', { class: 'form', onsubmit: async (e) => {
       e.preventDefault();
       if (await chay(() => api('PUT', '/tai-khoan/mat-khau', { matKhauCu: cu.value, matKhauMoi: moi.value })) !== undefined) { cu.value = ''; moi.value = ''; thongBao('Đã đổi mật khẩu'); }
-    } }, truong('Mật khẩu hiện tại', cu), truong('Mật khẩu mới (từ 6 ký tự)', moi), h('div', { class: 'actions', style: 'justify-content:flex-start' }, h('button', { class: 'btn primary' }, 'Đổi mật khẩu'))))));
+    } }, truong('Mật khẩu hiện tại', cu), truong('Mật khẩu mới (từ 6 ký tự)', moi), h('div', { class: 'actions', style: 'justify-content:flex-start' }, h('button', { class: 'btn primary' }, 'Đổi mật khẩu')))),
+    h('div', { class: 'card' }, h('h2', {}, 'Phiên đăng nhập'), h('p', { class: 'muted small' }, 'Đăng xuất khỏi thiết bị này.'), h('button', { class: 'btn danger', onclick: () => document.dispatchEvent(new Event('dang-xuat')) }, 'Đăng xuất'))));
 }
 
 // ================= Quản trị và các vai trò nội bộ (UC 3.10) =================
