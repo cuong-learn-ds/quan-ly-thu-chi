@@ -244,7 +244,10 @@ async function tabThongKe(vung, { chay: choChay = true } = {}) {
   const t = await chay(() => api('GET', '/admin/thong-ke')); if (!t) return;
   const the = (n, v) => h('div', { class: 'card stat' }, h('div', { class: 'label' }, n), h('div', { class: 'val' }, so(v)));
   const o = h('input', { type: 'month', value: thangNay() });
+  const ty = t.soNguoiDung ? Math.round((t.soDangHoatDong / t.soNguoiDung) * 100) : 0;
   vung.append(h('div', { class: 'grid g4' }, the('Người dùng', t.soNguoiDung), the('Đang hoạt động', t.soDangHoatDong), the('Bị khóa', t.soBiKhoa), the('Giao dịch tháng này', t.soGiaoDichThangNay)),
+    h('div', { class: 'grid g3', style: 'margin-top:16px' }, the('Người dùng mới tháng này', t.soNguoiMoiThangNay ?? 0), the('Tổng số giao dịch', t.soGiaoDich ?? 0),
+      h('div', { class: 'card stat' }, h('div', { class: 'label' }, 'Tỷ lệ tài khoản hoạt động'), h('div', { class: 'val' }, `${ty}%`), h('div', { class: 'bar', style: 'margin-top:10px' }, h('i', { style: `width:${ty}%;background:var(--ok)` })))),
     !choChay ? h('span') : h('div', { class: 'card', style: 'margin-top:16px;max-width:560px' }, h('h2', {}, 'Chạy tổng kết tháng thủ công'),
       h('p', { class: 'muted small' }, 'Dùng để demo mà không phải chờ đến cuối tháng. Chạy lại nhiều lần không tạo báo cáo hoặc thông báo trùng.'),
       h('div', { class: 'toolbar', style: 'margin:0' }, truong('Tháng', o), h('button', { class: 'btn primary', onclick: async () => {

@@ -248,6 +248,7 @@ frontend/lib/
    - thu, chi, chênh lệch tháng này;
    - biểu đồ tròn chi theo danh mục;
    - biểu đồ cột thu chi 12 tháng của năm đang chọn;
+   - lời chào và mục nhận xét nhanh (dự báo chi cả tháng, cảnh báo); giao diện có chế độ sáng/tối;
    - so sánh thu, chi với tháng trước (mũi tên tăng/giảm); nút thao tác nhanh; số dư theo từng ví; mục tiêu tiết kiệm đang thực hiện;
    - tổng số dư các ví;
    - ngân sách ≥ 80%;

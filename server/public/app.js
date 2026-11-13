@@ -1,4 +1,7 @@
-import { api, PHIEN, h, bo, thongBao, truong, chay } from './core.js';
+import { api, PHIEN, CHE_DO, h, bo, thongBao, truong, chay } from './core.js';
+
+CHE_DO.ap();
+const nutChuDe = () => { const b = h('button', { class: 'themebtn', title: 'Đổi giao diện sáng/tối', 'aria-label': 'Đổi giao diện sáng hoặc tối' }); const ve = () => { b.textContent = CHE_DO.dangToi() ? '☀' : '☾'; }; b.onclick = () => { CHE_DO.doi(); ve(); }; ve(); return b; };
 import { trangTongQuan, trangGiaoDich, trangVi, trangDanhMuc, trangDinhKy } from './pages-ghi-chep.js';
 import { trangNganSach, trangMucTieu, trangBaoCao, trangThongBao, trangCaiDat, trangTaiKhoan, trangQuanTri, trangHoTro, trangKiemToan } from './pages-ke-hoach.js';
 
@@ -50,6 +53,7 @@ function veKhung(khoa) {
       h('nav', { class: 'nav', 'aria-label': 'Điều hướng chính' }, menu.map(([href, k, t]) => h('a', { href, class: href === `#/${khoa}` ? 'on' : '', 'aria-current': href === `#/${khoa}` ? 'page' : null }, icon(k), t))),
       h('div', { class: 'gap' }), h('button', { class: 'btn nav-extra', onclick: dangXuat }, 'Đăng xuất')),
     h('div', { class: 'main' }, h('header', { class: 'top' }, tieuDe,
+      nutChuDe(),
       PHIEN.vaiTro === 'NguoiDung' ? h('a', { class: 'bell', href: '#/thong-bao', 'aria-label': 'Thông báo' }, h('svg:svg', { viewBox: '0 0 24 24' }, h('svg:path', { d: ICON.tb })), dem) : null,
       h('div', { class: 'userchip' }, h('div', { class: 'avatar' }, (PHIEN.hoTen[0] ?? '?').toUpperCase()), ten),
       h('button', { class: 'btn sm', onclick: dangXuat }, 'Đăng xuất')), noiDung)));
@@ -74,7 +78,7 @@ function veXacThuc(che) {
   const ten = h('input', { required: true, autocomplete: 'name', maxlength: 100 }); const email = h('input', { type: 'email', required: true, autocomplete: 'email', value: dangKy ? '' : '' });
   const mk = h('input', { type: 'password', required: true, minlength: dangKy ? 6 : 1, autocomplete: dangKy ? 'new-password' : 'current-password' });
   const nut = h('button', { class: 'btn primary', style: 'justify-content:center' }, dangKy ? 'Đăng ký' : 'Đăng nhập');
-  bo(app).append(h('div', { class: 'auth' }, h('div', { class: 'card' },
+  bo(app).append(h('div', { class: 'auth' }, nutChuDe(), h('div', { class: 'card' },
     h('div', { class: 'brand' }, h('i', {}, h('svg:svg', { viewBox: '0 0 24 24', fill: 'none', 'stroke-width': 2.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('svg:path', { d: 'M4 17l5-6 4 4 7-9' }))), 'Quản lý thu chi'),
     h('h1', {}, dangKy ? 'Tạo tài khoản' : 'Đăng nhập'), h('p', { class: 'muted' }, 'Quản lý thu chi cá nhân và lập kế hoạch tài chính'),
     h('form', { class: 'form', onsubmit: async (e) => {

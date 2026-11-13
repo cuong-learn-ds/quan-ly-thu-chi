@@ -1,4 +1,4 @@
-import { api, qs, h, bo, vnd, ngayVN, gioVN, homNay, thangNay, tachThang, thongBao, hopThoai, xacNhan, truong, chon, chay, bieuDoTron, chuThich, thanhTienDo, chuCai, so, bieuDoCot } from './core.js';
+import { api, PHIEN, qs, h, bo, vnd, ngayVN, gioVN, homNay, thangNay, tachThang, thongBao, hopThoai, xacNhan, truong, chon, chay, bieuDoTron, chuThich, thanhTienDo, chuCai, so, bieuDoCot } from './core.js';
 
 // ================= Tổng quan =================
 export async function trangTongQuan(root) {
@@ -26,7 +26,23 @@ export async function trangTongQuan(root) {
     const tyLeTietKiem = d.tongThu > 0 ? Math.round((d.chenhLech / d.tongThu) * 100) : null;
     const the = (nhan, v, cls = '', phu = null) => h('div', { class: 'card stat' }, h('div', { class: 'label' }, nhan), h('div', { class: `val ${cls}` }, vnd(v)), phu);
     const dsMucTieu = (dsMt ?? []).filter((m) => !m.daHoanThanh).slice(0, 3);
+    // Nhận xét nhanh (tính ở trình duyệt từ dữ liệu đã có, không thêm API)
+    const nhanXet = [];
+    const [ht, hn] = tachThang(thangNay());
+    if (t === ht && n === hn) {
+      const ngayDaQua = Number(homNay().slice(8, 10)); const soNgay = new Date(n, t, 0).getDate();
+      if (d.tongChi > 0 && ngayDaQua >= 3) { const duBao = Math.round((d.tongChi / ngayDaQua) * soNgay); nhanXet.push(['i', `Dự báo chi cả tháng khoảng ${vnd(duBao)} nếu giữ nhịp chi hiện tại (${vnd(Math.round(d.tongChi / ngayDaQua))}/ngày).`]); }
+    }
+    if (d.tongThu > 0 && d.tongChi > d.tongThu) nhanXet.push(['!', 'Tháng này bạn chi nhiều hơn thu. Hãy xem lại các khoản chi lớn.', 'bad']);
+    else if (tyLeTietKiem !== null && tyLeTietKiem >= 20) nhanXet.push(['✓', `Bạn đang giữ lại ${tyLeTietKiem}% thu nhập, mức tiết kiệm tốt.`, 'ok']);
+    if (d.chiTheoDanhMuc.length) { const top = [...d.chiTheoDanhMuc].sort((a, b) => b.soTien - a.soTien)[0]; nhanXet.push(['i', `Danh mục chi nhiều nhất: ${top.tenDanhMuc} (${vnd(top.soTien)}).`]); }
+    const vuot = d.sapVuot.filter((x) => x.tienDo > 100).length;
+    if (vuot) nhanXet.push(['!', `${vuot} ngân sách đã vượt hạn mức.`, 'bad']); else if (d.sapVuot.length) nhanXet.push(['!', `${d.sapVuot.length} ngân sách sắp chạm hạn mức.`, 'warn']);
+    const chamTd = dsMucTieu.filter((m) => m.chamTienDo).length;
+    if (chamTd) nhanXet.push(['!', `${chamTd} mục tiêu tiết kiệm đang chậm tiến độ.`, 'warn']);
+    const gio = Number(new Date(Date.now() + 7 * 3600e3).toISOString().slice(11, 13));
     bo(vung).append(
+      h('div', { class: 'greet' }, h('h2', {}, `${gio < 11 ? 'Chào buổi sáng' : gio < 18 ? 'Chào buổi chiều' : 'Chào buổi tối'}, ${PHIEN.hoTen}`), h('p', { class: 'muted small' }, `Tình hình thu chi tháng ${String(t).padStart(2, '0')}/${n}`)),
       h('div', { class: 'quick' },
         h('a', { class: 'btn primary', href: '#/giao-dich' }, '+ Thêm giao dịch'), h('a', { class: 'btn', href: '#/vi' }, 'Chuyển tiền giữa ví'),
         h('a', { class: 'btn', href: '#/ngan-sach' }, 'Ngân sách'), h('a', { class: 'btn', href: '#/muc-tieu' }, 'Mục tiêu tiết kiệm'), h('a', { class: 'btn', href: '#/dinh-ky' }, 'Giao dịch định kỳ')),
@@ -55,6 +71,7 @@ export async function trangTongQuan(root) {
             h('div', { class: 'bar' }, h('i', { style: `width:${Math.min(100, m.tienDo)}%;background:${m.chamTienDo ? 'var(--warn)' : 'var(--ok)'}` })),
             h('div', { class: 'small muted', style: 'margin-top:4px' }, `${vnd(m.soTienHienTai)} / ${vnd(m.soTienMucTieu)} · hạn ${ngayVN(m.hanChot)}`)))
             : h('div', { class: 'empty' }, 'Chưa có mục tiêu đang thực hiện'))),
+      nhanXet.length ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, 'Nhận xét nhanh'), h('div', { class: 'tips' }, nhanXet.map(([k, tx, c = '']) => h('div', { class: `tip ${c}` }, h('b', {}, k), h('span', {}, tx))))) : null,
       tg ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, `Thu chi theo tháng năm ${n}`), bieuDoCot(tg, n)) : null,
       h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', {}, '5 giao dịch gần nhất'),
         d.ganDay.length ? d.ganDay.map((g) => dongGiaoDich(g)) : h('div', { class: 'empty' }, 'Chưa có giao dịch')));

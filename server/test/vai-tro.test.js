@@ -40,7 +40,7 @@ test('đăng nhập trả đúng vai trò cho 4 loại tài khoản nội bộ v
 
 test('Kiểm toán viên chỉ đọc: xem thống kê và danh sách người dùng, không khóa/tổng kết được', async () => {
   const t = (await dangNhap('kiemtoan@demo.vn')).token; const nd = await nguoiDung('vt2@x.vn');
-  assert.equal((await goi('GET', '/admin/thong-ke', { token: t })).status, 200);
+  const tk = await goi('GET', '/admin/thong-ke', { token: t }); assert.equal(tk.status, 200); assert.equal(typeof tk.json.soNguoiMoiThangNay, 'number');
   const ds = (await goi('GET', '/admin/nguoi-dung?q=vt2@', { token: t })).json;
   assert.equal(ds.length, 1);
   assert.equal((await goi('PUT', `/admin/nguoi-dung/${ds[0].maTaiKhoan}/khoa`, { token: t, body: { lyDo: 'x' } })).status, 403);

@@ -7,6 +7,14 @@ export const PHIEN = {
   get hoTen() { try { return localStorage.getItem('hoTen') ?? ''; } catch { return ''; } },
 };
 
+/** Chế độ giao diện: 'sang' | 'toi' | null (theo hệ thống). Lưu trong trình duyệt. */
+export const CHE_DO = {
+  get() { try { return localStorage.getItem('cheDo'); } catch { return null; } },
+  ap() { const v = this.get(); if (v === 'toi') document.documentElement.dataset.theme = 'dark'; else if (v === 'sang') document.documentElement.dataset.theme = 'light'; else delete document.documentElement.dataset.theme; },
+  dangToi() { const v = this.get(); return v === 'toi' || (v !== 'sang' && matchMedia('(prefers-color-scheme: dark)').matches); },
+  doi() { try { localStorage.setItem('cheDo', this.dangToi() ? 'sang' : 'toi'); } catch { /* bỏ qua */ } this.ap(); },
+};
+
 export class LoiApi extends Error { constructor(msg, status) { super(msg); this.status = status; } }
 
 export async function api(method, path, body, { blob = false } = {}) {

@@ -625,6 +625,7 @@ export function taoDichVu(ctx) {
         soBiKhoa: c("SELECT COUNT(*) n FROM TaiKhoan WHERE loaiTaiKhoan='NguoiDung' AND trangThai='BiKhoa'"),
         soGiaoDich: c('SELECT COUNT(*) n FROM GiaoDich'),
         soGiaoDichThangNay: c('SELECT COUNT(*) n FROM GiaoDich WHERE substr(ngayGiaoDich,1,7)=?', d),
+        soNguoiMoiThangNay: c("SELECT COUNT(*) n FROM TaiKhoan WHERE loaiTaiKhoan='NguoiDung' AND substr(ngayTao,1,7)=?", d),
       };
     },
     danhMucMacDinh: () => db.all('SELECT * FROM DanhMuc WHERE maTaiKhoan IS NULL ORDER BY laHeThong, maDanhMuc').map((r) => dtoDm(nap.danhMuc(r))),
