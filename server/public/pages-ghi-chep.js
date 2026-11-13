@@ -305,7 +305,7 @@ export async function trangDanhMuc(root) {
         h('button', { class: 'btn sm danger', onclick: () => xoa(d, r) }, 'Xóa')))));
   }
   function bieuMau(d) {
-    const ten = h('input', { value: d?.tenDanhMuc ?? '', required: true, maxlength: 40 }); const mau = h('input', { type: 'color', value: d?.mauSac ?? '#0f766e' });
+    const ten = h('input', { value: d?.tenDanhMuc ?? '', required: true, maxlength: 40 }); const mau = h('input', { type: 'color', value: d?.mauSac ?? '#2f9e44' });
     const dlg = hopThoai(d ? 'Sửa danh mục' : `Thêm danh mục ${loai === 'Chi' ? 'chi' : 'thu'}`, h('form', { class: 'form', onsubmit: async (e) => {
       e.preventDefault();
       const body = { tenDanhMuc: ten.value, loai, mauSac: mau.value };

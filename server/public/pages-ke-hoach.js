@@ -230,7 +230,7 @@ async function tabDmMacDinh(vung) {
         h('button', { class: 'btn sm danger', onclick: async () => { if (await xacNhan(`Xóa danh mục mặc định "${d.tenDanhMuc}"?`) && await chay(() => api('DELETE', `/admin/danh-muc-mac-dinh/${d.maDanhMuc}`)) !== undefined) { thongBao('Đã xóa'); tai(); } } }, 'Xóa')))));
   }
   function bieuMau(d) {
-    const ten = h('input', { value: d?.tenDanhMuc ?? '', required: true }); const loai = chon([['Chi', 'Chi'], ['Thu', 'Thu']], d?.loai ?? 'Chi', { disabled: !!d }); const mau = h('input', { type: 'color', value: d?.mauSac ?? '#0f766e' });
+    const ten = h('input', { value: d?.tenDanhMuc ?? '', required: true }); const loai = chon([['Chi', 'Chi'], ['Thu', 'Thu']], d?.loai ?? 'Chi', { disabled: !!d }); const mau = h('input', { type: 'color', value: d?.mauSac ?? '#2f9e44' });
     const dlg = hopThoai(d ? 'Sửa danh mục mặc định' : 'Thêm danh mục mặc định', h('form', { class: 'form', onsubmit: async (e) => {
       e.preventDefault();
       const body = { tenDanhMuc: ten.value, loai: loai.value, mauSac: mau.value };

@@ -10,7 +10,7 @@
 - **Chuyển tiền giữa các ví** (trang Ví): trừ ví nguồn, cộng ví đích, ghi lịch sử; không tính vào thu chi.
 - **Giao dịch định kỳ** (trang Định kỳ): lịch thu/chi hằng tháng vào một ngày cố định (1–28), bộ hẹn giờ tự tạo giao dịch mỗi tháng một lần.
 - **Dashboard Tổng quan:** thẻ thu/chi/chênh lệch/tổng số dư (kèm so sánh với tháng trước), nút thao tác nhanh, biểu đồ tròn chi theo danh mục, số dư theo ví, ngân sách sắp vượt, mục tiêu tiết kiệm, biểu đồ cột thu chi 12 tháng và 5 giao dịch gần nhất, lời chào theo giờ và mục "Nhận xét nhanh" (dự báo chi cả tháng, cảnh báo chi vượt thu, ngân sách vượt, mục tiêu chậm tiến độ).
-- **Giao diện sáng/tối:** nút đổi chế độ ở thanh trên cùng (và trang đăng nhập), nhớ lựa chọn trong trình duyệt; mặc định theo hệ thống.
+- **Giao diện sáng/tối:** tông màu chủ đạo xanh lá; nút đổi chế độ ở thanh trên cùng (và trang đăng nhập), nhớ lựa chọn trong trình duyệt; mặc định theo hệ thống.
 - **Thống kê quản trị:** thêm số người dùng mới trong tháng, tổng số giao dịch và tỷ lệ tài khoản hoạt động (Quản trị viên, Kiểm toán viên).
 - Báo cáo, thông báo nhắc nhở; quản trị viên, nhân viên hỗ trợ, kiểm toán viên có màn hình riêng.
 

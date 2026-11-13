@@ -101,7 +101,7 @@ export async function chay(fn, hd) {
 }
 
 // ---- biểu đồ SVG
-const MAU = ['#0f766e', '#ea580c', '#7c3aed', '#2563eb', '#db2777', '#65a30d', '#ca8a04', '#64748b'];
+const MAU = ['#2f9e44', '#ea580c', '#7c3aed', '#2563eb', '#db2777', '#65a30d', '#ca8a04', '#64748b'];
 export function bieuDoTron(ds, kichThuoc = 180) {
   const tong = ds.reduce((s, x) => s + x.soTien, 0);
   const r = 70; const c = 2 * Math.PI * r; let off = 0;

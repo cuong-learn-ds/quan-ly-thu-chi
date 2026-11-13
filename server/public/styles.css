@@ -1,14 +1,14 @@
 :root {
-  --bg: #f3f5f7; --card: #ffffff; --text: #1b2733; --muted: #66788a; --line: #e3e8ee;
-  --primary: #0f766e; --primary-d: #0b5c56; --primary-l: #e0f2f0;
+  --bg: #f1f6f2; --card: #ffffff; --text: #1b2733; --muted: #66788a; --line: #e3e8ee;
+  --primary: #2f9e44; --primary-d: #237a34; --primary-l: #e6f4ea;
   --thu: #15803d; --chi: #c2410c; --ok: #16a34a; --warn: #d97706; --bad: #dc2626;
   --radius: 14px; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 14px rgba(16,24,40,.05);
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --bg: #0f1720; --card: #17212c; --text: #e6edf3; --muted: #93a4b5; --line: #263443; --primary: #2dd4bf; --primary-d: #5eead4; --primary-l: #12363a;
+  :root:not([data-theme="light"]) { --bg: #0f1720; --card: #17212c; --text: #e6edf3; --muted: #93a4b5; --line: #263443; --primary: #4ade80; --primary-d: #86efac; --primary-l: #14301f;
           --thu: #4ade80; --chi: #fb923c; --shadow: 0 1px 2px rgba(0,0,0,.4); }
 }
-:root[data-theme="dark"] { --bg: #0f1720; --card: #17212c; --text: #e6edf3; --muted: #93a4b5; --line: #263443; --primary: #2dd4bf; --primary-d: #5eead4; --primary-l: #12363a;
+:root[data-theme="dark"] { --bg: #0f1720; --card: #17212c; --text: #e6edf3; --muted: #93a4b5; --line: #263443; --primary: #4ade80; --primary-d: #86efac; --primary-l: #14301f;
   --thu: #4ade80; --chi: #fb923c; --shadow: 0 1px 2px rgba(0,0,0,.4); }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; }
