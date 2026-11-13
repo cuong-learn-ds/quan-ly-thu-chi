@@ -47,9 +47,13 @@ export function taoApp({ db, dongHo = new DongHoVietNam(), ocr, khoaJwt = proces
   // Mã QR để mở web trên điện thoại cùng mạng Wi-Fi (công khai, chỉ trả địa chỉ của chính máy chủ)
   api.get('/ket-noi-dien-thoai', bao(async (req) => {
     const cong = req.socket.localPort;
-    const diaChi = Object.values(networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal && !i.address.startsWith('169.254.')).map((i) => i.address);
-    diaChi.sort((a, b) => Number(/^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))/.test(b)) - Number(/^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))/.test(a)));
-    return Promise.all(diaChi.slice(0, 3).map(async (ip) => { const url = `http://${ip}:${cong}`; return { url, svg: await QRCode.toString(url, { type: 'svg', margin: 1, width: 220 }) }; }));
+    // Chỉ lấy 1 địa chỉ: card Wi-Fi/LAN thật, bỏ card ảo (VirtualBox, VMware, Hyper-V, WSL, Docker...)
+    const ao = /virtual|vmware|vbox|hyper-v|vethernet|wsl|docker|bluetooth|loopback|tap-|tailscale|zerotier/i;
+    const rieng = /^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))/;
+    const tatCa = Object.entries(networkInterfaces()).flatMap(([ten, ds]) => (ds ?? []).filter((i) => i.family === 'IPv4' && !i.internal && !i.address.startsWith('169.254.')).map((i) => ({ ip: i.address, ao: ao.test(ten) || i.address.startsWith('192.168.56.') })));
+    tatCa.sort((x, y) => (x.ao - y.ao) || (Number(rieng.test(y.ip)) - Number(rieng.test(x.ip))));
+    const diaChi = tatCa.slice(0, 1).map((x) => x.ip);
+    return Promise.all(diaChi.map(async (ip) => { const url = `http://${ip}:${cong}`; return { url, svg: await QRCode.toString(url, { type: 'svg', margin: 1, width: 220 }) }; }));
   }));
   api.post('/auth/dang-ky', bao((req) => { S.taiKhoan.dangKy(req.body); return { message: 'Đăng ký thành công' }; }));
   api.post('/auth/dang-nhap', bao((req) => S.taiKhoan.dangNhap(req.body)));
