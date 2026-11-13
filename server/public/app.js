@@ -1,6 +1,20 @@
-import { api, PHIEN, CHE_DO, h, bo, thongBao, truong, chay } from './core.js';
+import { api, PHIEN, CHE_DO, h, bo, thongBao, truong, chay, hopThoai } from './core.js';
 
 CHE_DO.ap();
+/** Hộp thoại mã QR: quét bằng điện thoại cùng Wi-Fi để mở web. */
+async function hienQR() {
+  const noi = h('div', { class: 'qrbox' }, h('p', { class: 'muted' }, 'Đang tạo mã QR…'));
+  const dlg = hopThoai('Dùng trên điện thoại', h('div', {}, noi, h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: () => dlg.dong() }, 'Đóng'))));
+  try {
+    const ds = await api('GET', '/ket-noi-dien-thoai');
+    bo(noi);
+    if (!ds.length) { noi.append(h('p', { class: 'muted' }, 'Không tìm thấy địa chỉ mạng của máy chủ. Hãy kết nối Wi-Fi hoặc mạng LAN rồi thử lại.')); return; }
+    noi.append(h('p', {}, 'Mở camera điện thoại (kết nối cùng Wi-Fi với máy này) và quét mã để dùng web trên điện thoại.'),
+      ...ds.map((x) => { const q = h('div', { class: 'qr' }); q.innerHTML = x.svg; return h('div', { class: 'qritem' }, q, h('a', { href: x.url, target: '_blank', rel: 'noopener' }, x.url)); }),
+      h('p', { class: 'small muted' }, 'Nếu điện thoại không mở được: kiểm tra cùng Wi-Fi, và cho phép Node.js qua tường lửa Windows (mạng riêng tư). Trên điện thoại có thể chọn "Thêm vào màn hình chính" để dùng như ứng dụng.'));
+  } catch (e) { bo(noi).append(h('p', { class: 'err' }, e.message)); }
+}
+const nutQR = () => h('button', { class: 'themebtn', title: 'Dùng trên điện thoại (quét mã QR)', 'aria-label': 'Hiện mã QR để dùng trên điện thoại', onclick: hienQR }, '▦');
 const nutChuDe = () => { const b = h('button', { class: 'themebtn', title: 'Đổi giao diện sáng/tối', 'aria-label': 'Đổi giao diện sáng hoặc tối' }); const ve = () => { b.textContent = CHE_DO.dangToi() ? '☀' : '☾'; }; b.onclick = () => { CHE_DO.doi(); ve(); }; ve(); return b; };
 import { trangTongQuan, trangGiaoDich, trangVi, trangDanhMuc, trangDinhKy } from './pages-ghi-chep.js';
 import { trangNganSach, trangMucTieu, trangBaoCao, trangThongBao, trangCaiDat, trangTaiKhoan, trangQuanTri, trangHoTro, trangKiemToan } from './pages-ke-hoach.js';
@@ -53,10 +67,12 @@ function veKhung(khoa) {
       h('nav', { class: 'nav', 'aria-label': 'Điều hướng chính' }, menu.map(([href, k, t]) => h('a', { href, class: href === `#/${khoa}` ? 'on' : '', 'aria-current': href === `#/${khoa}` ? 'page' : null }, icon(k), t))),
       h('div', { class: 'gap' }), h('button', { class: 'btn nav-extra', onclick: dangXuat }, 'Đăng xuất')),
     h('div', { class: 'main' }, h('header', { class: 'top' }, tieuDe,
-      nutChuDe(),
+      nutQR(), nutChuDe(),
       PHIEN.vaiTro === 'NguoiDung' ? h('a', { class: 'bell', href: '#/thong-bao', 'aria-label': 'Thông báo' }, h('svg:svg', { viewBox: '0 0 24 24' }, h('svg:path', { d: ICON.tb })), dem) : null,
       h('div', { class: 'userchip' }, h('div', { class: 'avatar' }, (PHIEN.hoTen[0] ?? '?').toUpperCase()), ten),
       h('button', { class: 'btn sm', onclick: dangXuat }, 'Đăng xuất')), noiDung)));
+  if (PHIEN.vaiTro === 'NguoiDung') app.append(h('a', { class: 'fab', href: '#/giao-dich?them=1', 'aria-label': 'Thêm giao dịch' }, '+'));
+  setTimeout(() => document.querySelector('.nav a.on')?.scrollIntoView({ inline: 'center', block: 'nearest' }), 0);
   return { tieuDe, noiDung };
 }
 
@@ -78,7 +94,7 @@ function veXacThuc(che) {
   const ten = h('input', { required: true, autocomplete: 'name', maxlength: 100 }); const email = h('input', { type: 'email', required: true, autocomplete: 'email', value: dangKy ? '' : '' });
   const mk = h('input', { type: 'password', required: true, minlength: dangKy ? 6 : 1, autocomplete: dangKy ? 'new-password' : 'current-password' });
   const nut = h('button', { class: 'btn primary', style: 'justify-content:center' }, dangKy ? 'Đăng ký' : 'Đăng nhập');
-  bo(app).append(h('div', { class: 'auth' }, nutChuDe(), h('div', { class: 'card' },
+  bo(app).append(h('div', { class: 'auth' }, h('div', { class: 'authtools' }, nutQR(), nutChuDe()), h('div', { class: 'card' },
     h('div', { class: 'brand' }, h('i', {}, h('svg:svg', { viewBox: '0 0 24 24', fill: 'none', 'stroke-width': 2.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('svg:path', { d: 'M4 17l5-6 4 4 7-9' }))), 'Quản lý thu chi'),
     h('h1', {}, dangKy ? 'Tạo tài khoản' : 'Đăng nhập'), h('p', { class: 'muted' }, 'Quản lý thu chi cá nhân và lập kế hoạch tài chính'),
     h('form', { class: 'form', onsubmit: async (e) => {

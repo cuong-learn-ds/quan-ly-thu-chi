@@ -116,7 +116,7 @@ Trình duyệt (server/public) ──HTTP/JSON + JWT──▶ app.js (route, ph�
 cd server
 npm install      # cài gói lần đầu
 npm start        # chạy website tại http://localhost:5080
-npm test         # chạy 45 kiểm thử tự động
+npm test         # chạy 46 kiểm thử tự động
 ```
 
 Xóa thư mục `server/data` để làm lại dữ liệu từ đầu. Đặt biến môi trường `GEMINI_API_KEY` để quét hóa đơn bằng Gemini thật; nếu không đặt, hệ thống dùng bản giả trả dữ liệu mẫu.
@@ -129,6 +129,7 @@ Xóa thư mục `server/data` để làm lại dữ liệu từ đầu. Đặt b
 | Giao dịch định kỳ | Lịch thu/chi hằng tháng, ngày 1–28; bộ hẹn giờ tạo đúng một giao dịch/tháng; thiếu số dư thì bỏ qua và báo; quy tắc R12 | `GiaoDichDinhKy` (domain), `S.dinhKy`, `/api/giao-dich-dinh-ky`, `jobs.js`, trang Định kỳ |
 | Dashboard Tổng quan | So sánh thu/chi với tháng trước, nút thao tác nhanh, số dư theo ví, mục tiêu tiết kiệm, biểu đồ cột 12 tháng (dùng lại các API có sẵn, không thêm API mới) | `trangTongQuan` trong `pages-ghi-chep.js`, `bieuDoCot` trong `core.js` |
 | Nhận xét nhanh và dự báo chi trên Tổng quan | Tính ở trình duyệt từ dữ liệu có sẵn: dự báo chi cả tháng, chi vượt thu, ngân sách vượt, mục tiêu chậm | `trangTongQuan` |
+| Giao diện điện thoại và mã QR | CSS cho màn hình nhỏ, nút + nổi, manifest để thêm vào màn hình chính; API công khai `GET /api/ket-noi-dien-thoai` trả địa chỉ LAN của máy chủ kèm mã QR (SVG, thư viện `qrcode`) | `app.js` (hienQR), `styles.css`, `manifest.webmanifest`, `app.js` trong `src` |
 | Giao diện sáng/tối | Màu chủ đạo xanh lá (#2f9e44); nút đổi chế độ, lưu trong trình duyệt, mặc định theo hệ thống | `CHE_DO` trong `core.js`, `styles.css` |
 | Thống kê quản trị mở rộng | Thêm `soNguoiMoiThangNay`, hiển thị tổng giao dịch và tỷ lệ hoạt động | `S.quanTri.thongKe`, `tabThongKe` |
 

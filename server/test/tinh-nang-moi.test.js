@@ -145,3 +145,10 @@ test('định kỳ: kiểm tra dữ liệu vào, sửa, xóa, không đụng đ�
   assert.equal((await goi('DELETE', `/giao-dich-dinh-ky/${dk.maDinhKy}`, { token: t })).status, 204);
   assert.equal((await goi('GET', '/giao-dich-dinh-ky', { token: t })).json.length, 0);
 });
+
+test('API mã QR kết nối điện thoại: công khai, mỗi mục có url mạng LAN và ảnh SVG', async () => {
+  const r = await goi('GET', '/ket-noi-dien-thoai');
+  assert.equal(r.status, 200);
+  assert.ok(Array.isArray(r.json));
+  for (const x of r.json) { assert.match(x.url, /^http:\/\/\d+\.\d+\.\d+\.\d+:\d+$/); assert.match(x.svg, /<svg/); }
+});

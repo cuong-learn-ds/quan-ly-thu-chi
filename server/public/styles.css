@@ -110,6 +110,11 @@ td.r, th.r { text-align: right; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill.warn { background: #4a3410; color: #fcd34d; } :root:not([data-theme="light"]) .pill.bad { background: #4c1d1d; color: #fca5a5; } :root:not([data-theme="light"]) .pill.ok { background: #14391f; color: #86efac; } }
 :root[data-theme="dark"] .pill.warn { background: #4a3410; color: #fcd34d; } :root[data-theme="dark"] .pill.bad { background: #4c1d1d; color: #fca5a5; } :root[data-theme="dark"] .pill.ok { background: #14391f; color: #86efac; }
 
+.qrbox { text-align: center; } .qritem { margin: 12px 0; } .qr { display: inline-block; background: #fff; padding: 8px; border-radius: 12px; border: 1px solid var(--line); } .qr svg { width: 220px; height: 220px; display: block; }
+.qritem a { display: block; margin-top: 6px; font-weight: 600; color: var(--primary-d); word-break: break-all; }
+.authtools { position: fixed; top: 14px; right: 14px; display: flex; gap: 8px; z-index: 3; } .authtools .themebtn { position: static; background: var(--card); }
+.fab { display: none; }
+
 /* ----- thông báo ----- */
 .noti { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
 .noti.un { font-weight: 600; } .noti .info { flex: 1; } .noti i { width: 9px; height: 9px; border-radius: 50%; background: var(--primary); margin-top: 7px; flex: none; } .noti.rd i { background: transparent; }
@@ -122,5 +127,26 @@ td.r, th.r { text-align: right; }
   .nav { display: flex; gap: 2px; width: 100%; } .nav a { flex-direction: column; gap: 2px; font-size: 11px; padding: 6px 9px; flex: 1; min-width: 62px; text-align: center; }
   .top, .page { padding-left: 16px; padding-right: 16px; } .g4 { grid-template-columns: 1fr 1fr; } .g2, .g3 { grid-template-columns: 1fr; }
   .donut { grid-template-columns: 1fr; justify-items: center; } .scan { grid-template-columns: 1fr; } .userchip .name { display: none; }
+}
+/* Giao diện điện thoại: cảm ứng to hơn, hộp thoại dạng bảng trượt từ dưới, nút + nổi */
+@media (max-width: 899px) {
+  html, body { -webkit-text-size-adjust: 100%; }
+  input, select, textarea { font-size: 16px; min-height: 44px; }
+  .btn { min-height: 42px; } .btn.sm { min-height: 36px; }
+  .top { padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: 10px; gap: 8px; } .top h1 { font-size: 18px; }
+  .top .btn.sm { display: none; } .userchip .avatar { width: 32px; height: 32px; }
+  .page { padding-top: 16px; padding-bottom: 96px; }
+  .side { padding-bottom: max(4px, env(safe-area-inset-bottom)); box-shadow: 0 -2px 12px rgba(16,24,40,.08); }
+  .nav a { min-width: 68px; border-radius: 12px; } .nav a.on { background: var(--primary-l); }
+  .nav svg { width: 22px; height: 22px; }
+  .toolbar label.f { min-width: calc(50% - 6px); flex: 1; } .toolbar .btn { flex: 1; justify-content: center; }
+  .quick .btn { flex: 1 1 calc(50% - 10px); justify-content: center; text-align: center; }
+  .card { padding: 14px; } .card .stat .val, .stat .val { font-size: 22px; }
+  .overlay { align-items: end; padding: 0; } .modal, .modal.wide { width: 100%; border-radius: 18px 18px 0 0; max-height: 92vh; padding-bottom: max(22px, env(safe-area-inset-bottom)); }
+  .card:has(table) { overflow-x: auto; } table { min-width: 560px; }
+  .bars { height: 180px; gap: 3px; } .bars .col { font-size: 10px; }
+  .fab { display: grid; place-items: center; position: fixed; right: 16px; bottom: calc(78px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 32px; line-height: 1; text-decoration: none; box-shadow: 0 6px 18px rgba(0,0,0,.3); z-index: 9; }
+  .toast { bottom: 90px; }
+  .auth { align-items: start; padding-top: 70px; } .auth .card { padding: 22px; }
 }
 @media (max-width: 520px) { .g4 { grid-template-columns: 1fr; } .form .two { grid-template-columns: 1fr; } .stat .val { font-size: 21px; } }

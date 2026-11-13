@@ -176,6 +176,7 @@ GET    /admin/nguoi-dung?q       PUT /admin/nguoi-dung/{id}/khoa {lyDo}
 PUT    /admin/nguoi-dung/{id}/mo-khoa
 GET/POST/PUT/DELETE /admin/danh-muc-mac-dinh[/{id}]
 GET    /admin/thong-ke
+GET    /ket-noi-dien-thoai        (công khai: địa chỉ LAN + mã QR SVG để mở web trên điện thoại)
 POST   /admin/chay-tong-ket?thang&nam        (chạy tổng kết thủ công để demo)
 ```
 

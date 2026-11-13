@@ -102,6 +102,7 @@ export async function trangGiaoDich(root) {
     h('div', { class: 'sp' }),
     h('button', { class: 'btn', onclick: () => quetHoaDon(dsVi, dsDm, tai) }, 'Quét hóa đơn'),
     h('button', { class: 'btn primary', onclick: () => bieuMauGiaoDich(null, dsVi, dsDm, tai) }, '+ Thêm giao dịch'));
+  if (location.hash.includes('them=1')) { history.replaceState(null, '', '#/giao-dich'); setTimeout(() => bieuMauGiaoDich(null, dsVi, dsDm, () => location.reload()), 0); }
   root.append(bar, ketQua);
 
   async function tai() {
