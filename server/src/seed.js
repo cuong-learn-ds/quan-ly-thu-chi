@@ -33,7 +33,7 @@ export function napDuLieuDemo(db, bam, dongHo) {
   const now = dongHo.bayGio(); const hom = dongHo.homNay();
   const thangNay = +now.slice(5, 7); const namNay = +now.slice(0, 4); const ngayNay = +now.slice(8, 10);
   db.giaoDich(() => {
-    const maTk = db.run("INSERT INTO TaiKhoan (loaiTaiKhoan, hoTen, email, matKhauHash, trangThai, ngayTao) VALUES ('NguoiDung','Nguyễn Văn Demo','demo@demo.vn',?, 'HoatDong', ?)",
+    const maTk = db.run("INSERT INTO TaiKhoan (loaiTaiKhoan, hoTen, email, matKhauHash, trangThai, ngayTao) VALUES ('NguoiDung','Demo','demo@demo.vn',?, 'HoatDong', ?)",
       bam.bam(MAT_KHAU_DEMO), cong(hom, -3) + 'T08:00:00').id;
     db.run('INSERT INTO CaiDatNhacNho (maTaiKhoan) VALUES (?)', maTk);
     const taoVi = (ten, loai, sd) => nap.vi(db.get('SELECT * FROM Vi WHERE maVi=?', db.run('INSERT INTO Vi (maTaiKhoan, tenVi, loaiVi, soDu, ngayTao) VALUES (?,?,?,?,?)', maTk, ten, loai, sd, cong(hom, -3) + 'T08:00:00').id));
