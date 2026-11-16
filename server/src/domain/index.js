@@ -253,3 +253,97 @@ export class BaoCaoThang {
   /** R9: lập hoặc cập nhật số liệu (không tạo bản trùng). */
   lapBaoCao(thu, chi, soVuot, luc) { Object.assign(this, { tongThu: thu, tongChi: chi, soDanhMucVuot: soVuot, ngayLap: luc }); }
 }
+
+// ---------------- Kế hoạch tài chính tháng ----------------
+export const PhuongPhapKeHoach = Object.freeze({ LichSu: 'LichSu', QuyTac503020: '50-30-20' });
+/** Nhóm "thiết yếu" của quy tắc 50/30/20; các danh mục chi còn lại thuộc nhóm "mong muốn". */
+export const DANH_MUC_THIET_YEU = Object.freeze(['Ăn uống', 'Đi lại', 'Hóa đơn', 'Sức khỏe', 'Giáo dục']);
+const lamTron = (n, buoc) => Math.round(n / buoc) * buoc;
+const lamTronXuong = (n, buoc) => Math.floor(n / buoc) * buoc;
+const lamTronLen = (n, buoc) => Math.ceil(n / buoc) * buoc;
+const vnd = (n) => `${Math.round(n).toLocaleString('vi-VN')}đ`;
+
+/**
+ * Kế hoạch tài chính của một tháng (R13): thu nhập dự kiến, tiền để dành và cách phân bổ chi.
+ * Phần phân bổ chi được lưu thành các NganSach của tháng nên cảnh báo vượt ngân sách (R6) dùng lại được.
+ */
+export class KeHoachThang {
+  constructor(init = {}) {
+    Object.assign(this, { maKeHoach: 0, maTaiKhoan: 0, thang: 1, nam: 2000, thuNhapDuKien: 0, tietKiemDuKien: 0, phuongPhap: PhuongPhapKeHoach.LichSu, ngayLap: '' }, init);
+  }
+  /** R13: thu nhập dự kiến > 0, tiền để dành >= 0, phương pháp hợp lệ. */
+  static lap(maTaiKhoan, thang, nam, thuNhapDuKien, tietKiemDuKien, phuongPhap, ngayLap) {
+    if (!Number.isInteger(thuNhapDuKien) || thuNhapDuKien <= 0) throw new DomainError('Thu nhập dự kiến phải là số nguyên lớn hơn 0');
+    if (!Number.isInteger(tietKiemDuKien) || tietKiemDuKien < 0) throw new DomainError('Tiền để dành dự kiến không hợp lệ');
+    if (!Object.values(PhuongPhapKeHoach).includes(phuongPhap)) throw new DomainError('Phương pháp lập kế hoạch không hợp lệ');
+    return new KeHoachThang({ maTaiKhoan, thang, nam, thuNhapDuKien, tietKiemDuKien, phuongPhap, ngayLap });
+  }
+  /** Phần còn lại sau khi trừ tổng hạn mức chi và tiền để dành; âm nghĩa là kế hoạch thâm hụt. */
+  tinhConLai(tongChiKeHoach) { return this.thuNhapDuKien - tongChiKeHoach - this.tietKiemDuKien; }
+  laCanDoi(tongChiKeHoach) { return this.tinhConLai(tongChiKeHoach) >= 0; }
+
+  /** Dự báo chi cả tháng theo tốc độ chi hiện tại. */
+  static duBaoChiCaThang(daChi, ngayDaQua, soNgayTrongThang) {
+    if (ngayDaQua <= 0) return daChi;
+    return Math.round((daChi / Math.min(ngayDaQua, soNgayTrongThang)) * soNgayTrongThang);
+  }
+
+  /**
+   * Thuật toán gợi ý phân bổ: người dùng chỉ cần nhập (hoặc xác nhận) thu nhập, hệ thống đề xuất phần còn lại.
+   * danhMuc: [{ maDanhMuc, tenDanhMuc, trungBinh3Thang, coDinh }] — coDinh là tổng các khoản chi định kỳ của danh mục.
+   * tietKiemCan: tổng số tiền các mục tiêu cần để dành mỗi tháng.
+   * - LichSu: mỗi danh mục lấy mức chi trung bình 3 tháng (làm tròn lên 50.000đ, không thấp hơn khoản cố định);
+   *   để dành = nhu cầu của các mục tiêu (hoặc 10% thu nhập nếu chưa có mục tiêu); thiếu tiền thì giảm phần linh hoạt theo tỷ lệ.
+   * - 50-30-20: 50% thu nhập cho nhóm thiết yếu, 30% cho nhóm mong muốn, 20% để dành; trong mỗi nhóm chia theo tỷ trọng chi trước đây.
+   */
+  static goiYPhanBo(thuNhap, phuongPhap, danhMuc, tietKiemCan) {
+    const canhBao = [];
+    const ds = danhMuc.map((d) => ({ ...d, coDinh: d.coDinh ?? 0, trungBinh3Thang: d.trungBinh3Thang ?? 0,
+      nhom: DANH_MUC_THIET_YEU.includes(d.tenDanhMuc) ? 'Thiết yếu' : 'Mong muốn' }));
+    const tongCoDinh = ds.reduce((s, d) => s + d.coDinh, 0);
+    let tietKiem;
+    if (phuongPhap === PhuongPhapKeHoach.QuyTac503020) {
+      tietKiem = lamTron(thuNhap * 0.2, 10_000);
+      for (const [nhom, tyLe] of [['Thiết yếu', 0.5], ['Mong muốn', 0.3]]) {
+        const trong = ds.filter((d) => d.nhom === nhom);
+        if (!trong.length) continue;
+        const quy = thuNhap * tyLe;
+        const trongSo = trong.map((d) => Math.max(d.trungBinh3Thang, d.coDinh));
+        const tong = trongSo.reduce((s, x) => s + x, 0);
+        trong.forEach((d, i) => { d.deXuat = Math.max(d.coDinh, lamTronXuong(tong ? (quy * trongSo[i]) / tong : quy / trong.length, 10_000)); });
+        if (trong.reduce((s, d) => s + d.deXuat, 0) > quy + 1) canhBao.push(`Các khoản cố định của nhóm ${nhom.toLowerCase()} vượt ${Math.round(tyLe * 100)}% thu nhập.`);
+      }
+      if (tietKiemCan > tietKiem) canhBao.push(`Các mục tiêu cần để dành ${vnd(tietKiemCan)}/tháng, nhiều hơn 20% thu nhập; nên giảm nhóm mong muốn hoặc lùi hạn chót.`);
+    } else {
+      tietKiem = tietKiemCan > 0 ? lamTronLen(tietKiemCan, 10_000) : lamTron(thuNhap * 0.1, 10_000);
+      ds.forEach((d) => { d.deXuat = d.trungBinh3Thang > 0 || d.coDinh > 0 ? Math.max(d.coDinh, lamTronLen(d.trungBinh3Thang, 50_000)) : 0; });
+      const linhHoat = ds.reduce((s, d) => s + (d.deXuat - d.coDinh), 0);
+      if (thuNhap > 0 && tongCoDinh + linhHoat + tietKiem > thuNhap) {
+        if (tongCoDinh + tietKiem > thuNhap) {
+          tietKiem = Math.max(0, lamTronXuong(thuNhap - tongCoDinh, 10_000));
+          canhBao.push('Thu nhập dự kiến chưa đủ cho các khoản cố định và mục tiêu tiết kiệm; đã giảm tiền để dành.');
+        }
+        const conCho = Math.max(0, thuNhap - tongCoDinh - tietKiem);
+        const k = linhHoat > 0 ? Math.min(1, conCho / linhHoat) : 0;
+        ds.forEach((d) => { d.deXuat = d.coDinh + lamTronXuong((d.deXuat - d.coDinh) * k, 10_000); });
+        canhBao.push('Thu nhập không đủ cho mức chi như 3 tháng gần đây; các khoản linh hoạt đã được giảm theo tỷ lệ.');
+      }
+    }
+    const tongChi = ds.reduce((s, d) => s + d.deXuat, 0);
+    return { phanBo: ds, tietKiem, tongChi, conLai: thuNhap - tongChi - tietKiem, canhBao };
+  }
+
+  /** Nhận xét kế hoạch so với thực tế (hiện trên trang Kế hoạch). muc: tot | canh | xau. */
+  danhGia({ tongChiKeHoach, daChi, duBaoChi, tietKiemThucTe, danhMucVuot = [], thangDaQua = false }) {
+    const nx = [];
+    if (!this.laCanDoi(tongChiKeHoach)) nx.push({ muc: 'xau', noiDung: `Kế hoạch đang thâm hụt ${vnd(-this.tinhConLai(tongChiKeHoach))}: tổng hạn mức chi và tiền để dành lớn hơn thu nhập dự kiến.` });
+    if (danhMucVuot.length) nx.push({ muc: 'xau', noiDung: `Đã vượt hạn mức: ${danhMucVuot.join(', ')}.` });
+    if (duBaoChi > tongChiKeHoach) nx.push({ muc: 'canh', noiDung: `${thangDaQua ? 'Cả tháng đã chi' : 'Theo tốc độ hiện tại, cả tháng sẽ chi khoảng'} ${vnd(duBaoChi)}, vượt kế hoạch ${vnd(duBaoChi - tongChiKeHoach)}.` });
+    else if (daChi > 0) nx.push({ muc: 'tot', noiDung: `Chi tiêu đang trong kế hoạch: ${thangDaQua ? 'đã chi' : 'dự báo cả tháng'} ${vnd(duBaoChi)} / kế hoạch ${vnd(tongChiKeHoach)}.` });
+    if (this.tietKiemDuKien > 0) {
+      if (tietKiemThucTe >= this.tietKiemDuKien) nx.push({ muc: 'tot', noiDung: 'Đã để dành đủ số tiền theo kế hoạch tháng này.' });
+      else nx.push({ muc: 'canh', noiDung: `Cần để dành thêm ${vnd(this.tietKiemDuKien - tietKiemThucTe)} (nạp vào mục tiêu tiết kiệm) để đạt kế hoạch.` });
+    }
+    return nx;
+  }
+}

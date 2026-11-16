@@ -6,7 +6,8 @@ import { bamMatKhau, DongHoVietNam } from './ha-tang.js';
 import { napDuLieuKhoiTao, napDuLieuDemo, MAT_KHAU_DEMO } from './seed.js';
 
 const goc = join(dirname(fileURLToPath(import.meta.url)), '..');
-const db = moCsdl(process.env.DB_FILE ?? join(goc, 'data', 'quan-ly-thu-chi.db'));
+// SQL Server: CSDL QuanLyThuChi (đổi bằng DB_NAME, DB_SERVER); lần đầu tự tạo CSDL và bảng từ sql/01_tao_csdl.sql
+const db = moCsdl();
 const dongHo = new DongHoVietNam();
 napDuLieuKhoiTao(db, bamMatKhau, dongHo);
 if (process.env.NODE_ENV !== 'production' && process.env.KHONG_NAP_DEMO !== '1') {

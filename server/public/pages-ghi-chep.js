@@ -100,6 +100,7 @@ export async function trangGiaoDich(root) {
     truong('Danh mục', chon([['', 'Tất cả'], ...dsDm.map((d) => [d.maDanhMuc, `${d.tenDanhMuc} (${d.loai})`])], '', { onchange: (e) => { loc.danhMucId = e.target.value; loc.trang = 1; tai(); } })),
     truong('Tìm ghi chú', h('input', { type: 'search', placeholder: 'Nhập từ khóa…', oninput: (e) => { clearTimeout(bar.t); bar.t = setTimeout(() => { loc.q = e.target.value; loc.trang = 1; tai(); }, 300); } })),
     h('div', { class: 'sp' }),
+    h('button', { class: 'btn', onclick: () => nhapTuFile(tai) }, 'Nhập từ file'),
     h('button', { class: 'btn', onclick: () => quetHoaDon(dsVi, dsDm, tai) }, 'Quét hóa đơn'),
     h('button', { class: 'btn primary', onclick: () => bieuMauGiaoDich(null, dsVi, dsDm, tai) }, '+ Thêm giao dịch'));
   if (location.hash.includes('them=1')) { history.replaceState(null, '', '#/giao-dich'); setTimeout(() => bieuMauGiaoDich(null, dsVi, dsDm, () => location.reload()), 0); }
@@ -128,6 +129,120 @@ export async function trangGiaoDich(root) {
   await tai();
 }
 
+// Nhập giao dịch từ file Excel/CSV: chọn file -> xem trước (lỗi từng dòng, dòng có thể trùng) -> xác nhận nhập
+function nhapTuFile(sauKhiNhap) {
+  const vung = h('div');
+  const tep = h('input', { type: 'file', accept: '.xlsx,.csv', 'aria-label': 'Chọn file Excel hoặc CSV', onchange: () => { if (tep.files[0]) xemTruoc(tep.files[0]); } });
+  const taiMau = async () => {
+    const b = await chay(() => api('GET', '/giao-dich/nhap/mau', undefined, { blob: true }), dlg); if (!b) return;
+    const a = h('a', { href: URL.createObjectURL(b), download: 'mau-nhap-giao-dich.xlsx' }); document.body.append(a); a.click(); a.remove();
+  };
+  const dlg = hopThoai('Nhập giao dịch từ file', h('div', { class: 'form' },
+    h('p', { class: 'small muted', style: 'margin:0' }, 'File .xlsx hoặc .csv có các cột: Ngày, Loại (Thu/Chi), Danh mục, Ví, Số tiền, Ghi chú. File xuất từ trang Báo cáo cũng nhập lại được. Tối đa 1000 dòng, 2 MB.'),
+    h('div', { class: 'toolbar', style: 'margin:0' }, truong('Chọn file', tep), h('div', { class: 'sp' }), h('button', { type: 'button', class: 'btn', onclick: taiMau }, 'Tải file mẫu')),
+    vung, h('div', { class: 'actions' }, h('button', { type: 'button', class: 'btn', onclick: () => dlg.dong() }, 'Đóng'))), { rong: true });
+
+  async function xemTruoc(file) {
+    dlg.loi(''); bo(vung).append(h('p', { class: 'muted' }, 'Đang đọc file…'));
+    const fd = new FormData(); fd.append('tep', file);
+    const r = await chay(() => api('POST', '/giao-dich/nhap/xem-truoc', fd), dlg);
+    bo(vung); if (!r) return;
+    const soTrung = r.hopLe.filter((x) => x.coTheTrung).length;
+    const chon = new Set(r.hopLe.filter((x) => !x.coTheTrung).map((x) => x.dong)); // dòng có thể trùng mặc định bỏ chọn
+    const nut = h('button', { type: 'button', class: 'btn primary' });
+    const capNhatNut = () => { nut.textContent = `Nhập ${chon.size} giao dịch`; nut.disabled = chon.size === 0; };
+    nut.onclick = async () => {
+      dlg.loi(''); nut.disabled = true;
+      const kq = await chay(() => api('POST', '/giao-dich/nhap', { dong: r.hopLe.filter((x) => chon.has(x.dong)) }), dlg);
+      if (!kq) { capNhatNut(); return; }
+      dlg.dong(); thongBao(`Đã nhập ${kq.soDaNhap} giao dịch (thu ${vnd(kq.tongThu)}, chi ${vnd(kq.tongChi)})`); sauKhiNhap();
+    };
+    capNhatNut();
+    vung.append(h('div', { class: 'nhap-tom-tat' }, h('span', { class: 'pill ok' }, `${r.hopLe.length} dòng hợp lệ`),
+      r.loi.length ? h('span', { class: 'pill bad' }, `${r.loi.length} dòng lỗi (bỏ qua)`) : null,
+      soTrung ? h('span', { class: 'pill warn' }, `${soTrung} dòng có thể trùng (đã bỏ chọn)`) : null));
+    if (r.loi.length) vung.append(h('details', { class: 'nhap-loi', open: !r.hopLe.length }, h('summary', {}, 'Xem các dòng lỗi'),
+      h('ul', {}, r.loi.map((x) => h('li', {}, h('b', {}, `Dòng ${x.dong}: `), x.loi)))));
+    if (r.hopLe.length) {
+      const tatCa = h('input', { type: 'checkbox', 'aria-label': 'Chọn tất cả', checked: chon.size === r.hopLe.length, onchange: (e) => {
+        r.hopLe.forEach((x) => (e.target.checked ? chon.add(x.dong) : chon.delete(x.dong)));
+        bang.querySelectorAll('tbody input').forEach((c) => { c.checked = e.target.checked; }); capNhatNut();
+      } });
+      const bang = h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, tatCa), h('th', {}, 'Dòng'), h('th', {}, 'Ngày'), h('th', {}, 'Danh mục'), h('th', {}, 'Ví'), h('th', { class: 'r' }, 'Số tiền'), h('th', {}, 'Ghi chú'))),
+        h('tbody', {}, r.hopLe.map((x) => h('tr', {},
+          h('td', {}, h('input', { type: 'checkbox', checked: chon.has(x.dong), 'aria-label': `Chọn dòng ${x.dong}`, onchange: (e) => { if (e.target.checked) chon.add(x.dong); else chon.delete(x.dong); capNhatNut(); } })),
+          h('td', { class: 'muted' }, x.dong), h('td', { class: 'nowrap' }, `${ngayVN(x.ngayGiaoDich)} ${gioVN(x.ngayGiaoDich)}`),
+          h('td', {}, x.tenDanhMuc, x.coTheTrung ? h('span', { class: 'pill warn', style: 'margin-left:6px' }, 'Có thể trùng') : null), h('td', {}, x.tenVi),
+          h('td', { class: `r nowrap ${x.loai === 'Thu' ? 'thu' : 'chi'}` }, `${x.loai === 'Thu' ? '+' : '−'}${so(x.soTien)}`), h('td', { class: 'small' }, x.ghiChu ?? '')))));
+      vung.append(h('div', { class: 'nhap-bang' }, bang), h('p', { class: 'small muted' }, 'Các dòng được nhập theo thứ tự ngày, tất cả trong một lần: nếu có dòng lỗi (ví dụ ví không đủ số dư) thì không dòng nào được ghi.'),
+        h('div', { class: 'actions' }, nut));
+    }
+  }
+}
+
+// ================= Lịch chi tiêu =================
+/** Số tiền rút gọn cho ô lịch: 45k, 1,2tr, 2tỷ. */
+const gon = (n) => {
+  const r = (x) => x.toFixed(1).replace(/\.0$/, '').replace('.', ',');
+  if (n >= 995e6) return `${r(n / 1e9)}tỷ`;
+  if (n >= 995e3) return `${r(n / 1e6)}tr`;
+  if (n >= 1e3) return `${Math.round(n / 1e3)}k`;
+  return String(n);
+};
+const THU_TRONG_TUAN = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+export async function trangLich(root) {
+  const [dsVi, dsDm] = await Promise.all([api('GET', '/vi'), api('GET', '/danh-muc')]);
+  let thang = thangNay(); let ngayChon = homNay(); let theoNgay = new Map();
+  const doiThang = (buoc) => { const [t, n] = tachThang(thang); const d = new Date(Date.UTC(n, t - 1 + buoc, 1)); thang = d.toISOString().slice(0, 7); o.value = thang; tai(); };
+  const o = h('input', { type: 'month', value: thang, 'aria-label': 'Chọn tháng', onchange: (e) => { thang = e.target.value || thangNay(); tai(); } });
+  const tomTat = h('div', { class: 'grid g4' }); const luoi = h('div', { class: 'card lich' }); const chiTiet = h('div', { class: 'card' });
+  root.append(h('div', { class: 'toolbar' },
+    h('button', { class: 'btn', onclick: () => doiThang(-1), 'aria-label': 'Tháng trước' }, '‹'), truong('Tháng', o), h('button', { class: 'btn', onclick: () => doiThang(1), 'aria-label': 'Tháng sau' }, '›'),
+    h('button', { class: 'btn', onclick: () => { thang = thangNay(); ngayChon = homNay(); o.value = thang; tai(); } }, 'Hôm nay')),
+  tomTat, h('div', { class: 'lich-bo-cuc' }, luoi, chiTiet));
+
+  async function tai() {
+    const [t, n] = tachThang(thang);
+    const d = await chay(() => api('GET', `/bao-cao/lich?${qs({ thang: t, nam: n })}`)); if (!d) return;
+    if (ngayChon.slice(0, 7) !== thang) ngayChon = null;
+    const the = (nhan, giaTri, cls = '', phu = null) => h('div', { class: 'card stat' }, h('div', { class: 'label' }, nhan), h('div', { class: `val ${cls}` }, giaTri), phu);
+    bo(tomTat).append(the('Tổng thu', vnd(d.tongThu), 'thu'), the('Tổng chi', vnd(d.tongChi), 'chi'),
+      the('Chi trung bình/ngày', vnd(d.chiTrungBinhNgay), '', h('div', { class: 'delta muted' }, `${d.soNgayCoChi} ngày có chi tiêu`)),
+      the('Ngày chi nhiều nhất', d.chiNhieuNhat ? ngayVN(d.chiNhieuNhat.ngay) : '—', '', d.chiNhieuNhat ? h('div', { class: 'delta chi' }, vnd(d.chiNhieuNhat.chi)) : h('div', { class: 'delta muted' }, 'Chưa có chi tiêu')));
+    theoNgay = new Map(d.ngay.map((x) => [x.ngay, x]));
+    const maxChi = Math.max(1, ...d.ngay.map((x) => x.chi));
+    const lech = (new Date(Date.UTC(n, t - 1, 1)).getUTCDay() + 6) % 7; // thứ Hai là cột đầu
+    const hom = homNay();
+    const o7 = [...THU_TRONG_TUAN.map((x) => h('div', { class: 'lich-thu', 'aria-hidden': 'true' }, x)), ...Array.from({ length: lech }, () => h('div', { 'aria-hidden': 'true' }))];
+    for (let i = 1; i <= d.soNgayTrongThang; i++) {
+      const ngay = `${thang}-${String(i).padStart(2, '0')}`; const x = theoNgay.get(ngay);
+      const nen = x?.chi ? `background:color-mix(in srgb, var(--chi) ${Math.round(8 + (x.chi / maxChi) * 30)}%, var(--card))` : '';
+      o7.push(h('button', { type: 'button', class: `lich-o${ngay === hom ? ' hom-nay' : ''}${ngay === ngayChon ? ' chon' : ''}${ngay > hom ? ' tuong-lai' : ''}`, style: nen,
+        'aria-pressed': ngay === ngayChon ? 'true' : 'false',
+        'aria-label': `Ngày ${i}/${t}${x ? `: thu ${vnd(x.thu)}, chi ${vnd(x.chi)}, ${x.soGiaoDich} giao dịch` : ': không có giao dịch'}`,
+        title: x ? `Thu ${vnd(x.thu)} · Chi ${vnd(x.chi)}` : '',
+        onclick: (e) => { ngayChon = ngay; luoi.querySelectorAll('.lich-o').forEach((b) => { const on = b === e.currentTarget; b.classList.toggle('chon', on); b.setAttribute('aria-pressed', on); }); xemNgay(); } },
+      h('span', { class: 'so' }, i), x?.thu ? h('span', { class: 'thu' }, `+${gon(x.thu)}`) : null, x?.chi ? h('span', { class: 'chi' }, `−${gon(x.chi)}`) : null));
+    }
+    bo(luoi).append(h('div', { class: 'lich-luoi' }, o7),
+      h('p', { class: 'small muted', style: 'margin:10px 0 0' }, 'Ô càng đậm thì ngày đó chi càng nhiều. Bấm vào một ngày để xem chi tiết.'));
+    xemNgay();
+  }
+
+  async function xemNgay() {
+    bo(chiTiet);
+    if (!ngayChon) { chiTiet.append(h('h2', {}, 'Chi tiết ngày'), h('div', { class: 'empty' }, 'Chọn một ngày trên lịch để xem giao dịch')); return; }
+    const r = await chay(() => api('GET', `/giao-dich?${qs({ tu: ngayChon, den: ngayChon })}`)); if (!r) return;
+    const { thu = 0, chi = 0 } = theoNgay.get(ngayChon) ?? {};
+    bo(chiTiet).append(h('div', { class: 'day', style: 'margin-top:0' }, h('span', {}, ngayVN(ngayChon)), h('span', {}, h('span', { class: 'thu' }, `+${so(thu)}`), ' · ', h('span', { class: 'chi' }, `−${so(chi)}`))),
+      ...(r.muc.length ? r.muc.map((g) => dongGiaoDich(g)) : [h('div', { class: 'empty' }, 'Không có giao dịch trong ngày này')]),
+      ...(r.tongSo > r.muc.length ? [h('p', { class: 'small muted' }, `Hiển thị ${r.muc.length}/${r.tongSo} giao dịch. Xem đủ ở trang Giao dịch.`)] : []),
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => bieuMauGiaoDich(null, dsVi, dsDm, tai, ngayChon) }, '+ Thêm giao dịch ngày này')));
+  }
+  await tai();
+}
+
 async function xemHoaDon(g) {
   const hd = await chay(() => api('GET', `/giao-dich/${g.maGiaoDich}/hoa-don`));
   if (!hd?.maHoaDon) return;
@@ -143,12 +258,12 @@ async function xemHoaDon(g) {
 function inputNgay(giaTri) { return h('input', { type: 'datetime-local', value: giaTri, required: true }); }
 
 // Hộp thoại thêm / sửa giao dịch (UC 3.5)
-function bieuMauGiaoDich(g, dsVi, dsDm, sauKhiLuu) {
+function bieuMauGiaoDich(g, dsVi, dsDm, sauKhiLuu, ngayMacDinh = null) {
   let loai = g?.loai ?? 'Chi';
   const tien = h('input', { type: 'number', min: 1, required: true, value: g?.soTien ?? '', placeholder: 'VD: 50000', 'aria-label': 'Số tiền' });
   const vi = chon(dsVi.map((v) => [v.maVi, `${v.tenVi} (${vnd(v.soDu)})`]), g?.maVi ?? dsVi[0]?.maVi);
   const dmSel = h('select');
-  const ngay = inputNgay((g?.ngayGiaoDich ?? `${homNay()}T${new Date(Date.now() + 7 * 3600e3).toISOString().slice(11, 16)}`).slice(0, 16));
+  const ngay = inputNgay((g?.ngayGiaoDich ?? `${ngayMacDinh ?? homNay()}T${new Date(Date.now() + 7 * 3600e3).toISOString().slice(11, 16)}`).slice(0, 16));
   const ghi = h('input', { type: 'text', maxlength: 200, value: g?.ghiChu ?? '', placeholder: 'VD: Cơm trưa với đồng nghiệp' });
   const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Loại giao dịch' });
   const veDm = () => { bo(dmSel).append(...dsDm.filter((d) => d.loai === loai && !(d.laHeThong)).map((d) => h('option', { value: d.maDanhMuc, selected: d.maDanhMuc === g?.maDanhMuc }, d.tenDanhMuc))); };
@@ -261,8 +376,8 @@ export async function trangVi(root) {
   }
   async function taiLichSu() {
     const ls = await chay(() => api('GET', '/chuyen-tien')); if (!ls) return;
-    bo(lichSu).append(h('h2', {}, 'Lịch sử chuyển tiền'), ls.length ? ls.map((c) => h('div', { class: 'row' }, h('div', { class: 'info' }, h('b', {}, `${c.tenViNguon} → ${c.tenViDich}`),
-      h('span', { class: 'small muted' }, `${ngayVN(c.ngayChuyen)} ${gioVN(c.ngayChuyen)}${c.ghiChu ? ` · ${c.ghiChu}` : ''}`)), h('b', {}, vnd(c.soTien)))) : h('div', { class: 'empty' }, 'Chưa có lần chuyển tiền nào'));
+    bo(lichSu).append(h('h2', {}, 'Lịch sử chuyển tiền'), h('div', {}, ls.length ? ls.map((c) => h('div', { class: 'row' }, h('div', { class: 'info' }, h('b', {}, `${c.tenViNguon} → ${c.tenViDich}`),
+      h('span', { class: 'small muted' }, `${ngayVN(c.ngayChuyen)} ${gioVN(c.ngayChuyen)}${c.ghiChu ? ` · ${c.ghiChu}` : ''}`)), h('b', {}, vnd(c.soTien)))) : h('div', { class: 'empty' }, 'Chưa có lần chuyển tiền nào')));
   }
   function chuyenTien() {
     if (dsVi.length < 2) { thongBao('Cần ít nhất hai ví để chuyển tiền', true); return; }
@@ -335,13 +450,13 @@ export async function trangDinhKy(root) {
     h('p', { class: 'small muted' }, 'Hệ thống tự tạo giao dịch vào ngày đã chọn mỗi tháng (đúng một lần/tháng). Nếu ví không đủ số dư, tháng đó bị bỏ qua và bạn nhận một thông báo.'), vung);
   async function tai() {
     const ds = await chay(() => api('GET', '/giao-dich-dinh-ky')); if (!ds) return;
-    bo(vung).append(ds.length ? ds.map((g) => h('div', { class: 'row' },
+    bo(vung).append(h('div', {}, ds.length ? ds.map((g) => h('div', { class: 'row' },
       h('div', { class: 'info' }, h('b', {}, `${g.tenDanhMuc} · ${vnd(g.soTien)}`), h('span', { class: 'small muted' }, `${g.loai} · ngày ${g.ngayTrongThang} hằng tháng · ví ${g.tenVi}${g.ghiChu ? ` · ${g.ghiChu}` : ''}`)),
       h('span', { class: `pill ${g.dangBat ? '' : 'warn'}` }, g.dangBat ? 'Đang bật' : 'Đã tắt'),
       h('button', { class: 'btn sm', onclick: async () => { if (await chay(() => api('PUT', `/giao-dich-dinh-ky/${g.maDinhKy}/bat-tat`, { dangBat: !g.dangBat })) !== undefined) tai(); } }, g.dangBat ? 'Tắt' : 'Bật'),
       h('button', { class: 'btn sm', onclick: () => bieuMau(g) }, 'Sửa'),
       h('button', { class: 'btn sm danger', onclick: async () => { if (await xacNhan('Xóa giao dịch định kỳ này?') && await chay(() => api('DELETE', `/giao-dich-dinh-ky/${g.maDinhKy}`)) !== undefined) { thongBao('Đã xóa'); tai(); } } }, 'Xóa')))
-      : h('div', { class: 'empty' }, 'Chưa có giao dịch định kỳ nào'));
+      : h('div', { class: 'empty' }, 'Chưa có giao dịch định kỳ nào')));
   }
   async function bieuMau(g) {
     const [dsVi, dsDm] = await Promise.all([api('GET', '/vi'), api('GET', '/danh-muc')]);

@@ -3,7 +3,9 @@ import ExcelJS from 'exceljs';
 import {
   DomainError, NotFoundError, LoaiGiaoDich, LoaiVi, LoaiThongBao, TrangThaiTaiKhoan, KetQuaCanhBao,
   TaiKhoan, NguoiDung, QuanTriVien, NhanVienHoTro, KiemToanVien, CaiDatNhacNho, Vi, DanhMuc, GiaoDich, ChuyenTien, GiaoDichDinhKy, HoaDon, ChiTietHoaDon, NganSach, MucTieuTietKiem, BaoCaoThang,
+  KeHoachThang, PhuongPhapKeHoach,
 } from '../domain/index.js';
+import { docTepNhap, taoFileMau, chuanNgay, boDau, SO_DONG_TOI_DA } from '../nhap-giao-dich.js';
 
 const b = (x) => !!x;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,9 +49,9 @@ export function taoDichVu(ctx) {
     },
     daGuiHomNay(maTk, loai) {
       const h = dongHo.homNay();
-      return !!db.get('SELECT 1 x FROM ThongBao WHERE maTaiKhoan=? AND loai=? AND substr(ngayTao,1,10)=?', maTk, loai, h);
+      return !!db.get('SELECT 1 x FROM ThongBao WHERE maTaiKhoan=? AND loai=? AND CAST(ngayTao AS DATE)=?', maTk, loai, h);
     },
-    danhSach: (maTk) => db.all('SELECT * FROM ThongBao WHERE maTaiKhoan=? ORDER BY ngayTao DESC, maThongBao DESC LIMIT 100', maTk).map((t) => ({ ...t, daDoc: b(t.daDoc) })),
+    danhSach: (maTk) => db.all('SELECT TOP 100 * FROM ThongBao WHERE maTaiKhoan=? ORDER BY ngayTao DESC, maThongBao DESC', maTk).map((t) => ({ ...t, daDoc: b(t.daDoc) })),
     soChuaDoc: (maTk) => db.get('SELECT COUNT(*) n FROM ThongBao WHERE maTaiKhoan=? AND daDoc=0', maTk).n,
     _lay(maTk, id) {
       const t = db.get('SELECT * FROM ThongBao WHERE maThongBao=? AND maTaiKhoan=?', id, maTk);
@@ -290,17 +292,17 @@ export function taoDichVu(ctx) {
       if (tu && den && tu > den) throw new DomainError('Khoảng thời gian không hợp lệ: ngày bắt đầu sau ngày kết thúc');
       const w = ['g.maTaiKhoan=?']; const p = [maTk];
       if (tu) { w.push('g.ngayGiaoDich>=?'); p.push(String(tu).slice(0, 10) + 'T00:00:00'); }
-      if (den) { w.push('substr(g.ngayGiaoDich,1,10)<=?'); p.push(String(den).slice(0, 10)); }
+      if (den) { w.push('CAST(g.ngayGiaoDich AS DATE)<=?'); p.push(String(den).slice(0, 10)); }
       if (loai) { w.push('g.loai=?'); p.push(loai); }
       if (viId) { w.push('g.maVi=?'); p.push(Number(viId)); }
       if (danhMucId) { w.push('g.maDanhMuc=?'); p.push(Number(danhMucId)); }
       if (q) { w.push('(g.ghiChu LIKE ? OR d.tenDanhMuc LIKE ?)'); p.push(`%${q}%`, `%${q}%`); }
       const t = Math.max(1, Number.parseInt(trang, 10) || 1);
       const tong = db.get(`SELECT COUNT(*) n FROM GiaoDich g JOIN DanhMuc d ON d.maDanhMuc=g.maDanhMuc WHERE ${w.join(' AND ')}`, ...p).n;
-      const muc = db.all(`${SEL_GD} WHERE ${w.join(' AND ')} ORDER BY g.ngayGiaoDich DESC, g.maGiaoDich DESC LIMIT ? OFFSET ?`, ...p, KICH_THUOC_TRANG, (t - 1) * KICH_THUOC_TRANG).map(dtoGd);
+      const muc = db.all(`${SEL_GD} WHERE ${w.join(' AND ')} ORDER BY g.ngayGiaoDich DESC, g.maGiaoDich DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`, ...p, (t - 1) * KICH_THUOC_TRANG, KICH_THUOC_TRANG).map(dtoGd);
       return { muc, trang: t, tongSo: tong, kichThuocTrang: KICH_THUOC_TRANG };
     },
-    gan: (maTk, n = 5) => db.all(`${SEL_GD} WHERE g.maTaiKhoan=? ORDER BY g.ngayGiaoDich DESC, g.maGiaoDich DESC LIMIT ?`, maTk, n).map(dtoGd),
+    gan: (maTk, n = 5) => db.all(`${SEL_GD} WHERE g.maTaiKhoan=? ORDER BY g.ngayGiaoDich DESC, g.maGiaoDich DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY`, maTk, n).map(dtoGd),
     _lay(maTk, id) {
       const r = db.get('SELECT * FROM GiaoDich WHERE maGiaoDich=? AND maTaiKhoan=?', id, maTk);
       if (!r) throw new NotFoundError(); // R10
@@ -436,7 +438,7 @@ export function taoDichVu(ctx) {
   // ============ Chuyển tiền giữa các ví (UC 2.10, 3.13) ============
   S.chuyenTien = {
     danhSach: (maTk) => db.all(`SELECT c.*, n.tenVi tenViNguon, d.tenVi tenViDich FROM ChuyenTien c JOIN Vi n ON n.maVi=c.maViNguon JOIN Vi d ON d.maVi=c.maViDich
-      WHERE c.maTaiKhoan=? ORDER BY c.ngayChuyen DESC, c.maChuyenTien DESC LIMIT 50`, maTk),
+      WHERE c.maTaiKhoan=? ORDER BY c.ngayChuyen DESC, c.maChuyenTien DESC OFFSET 0 ROWS FETCH NEXT 50 ROWS ONLY`, maTk),
     /** R11 + R1 + R2: trừ ví nguồn, cộng ví đích, ghi lịch sử trong MỘT transaction. */
     them(maTk, { maViNguon, maViDich, soTien: st, ghiChu } = {}) {
       return db.giaoDich(() => {
@@ -524,7 +526,7 @@ export function taoDichVu(ctx) {
       const [tu, den] = gioiHanThang(thang, nam);
       const { thu, chi } = this._tongThuChi(maTk, tu, den);
       const tongSoDu = db.get('SELECT COALESCE(SUM(soDu),0) s FROM Vi WHERE maTaiKhoan=?', maTk).s;
-      const chiTheoDanhMuc = this.theoDanhMuc(maTk, tu.slice(0, 10), `${nam}-${mm(thang)}-31`, 'Chi');
+      const chiTheoDanhMuc = this.theoDanhMuc(maTk, tu.slice(0, 10), `${nam}-${mm(thang)}-${mm(new Date(Date.UTC(nam, thang, 0)).getUTCDate())}`, 'Chi');
       const sapVuot = S.nganSach.danhSachTheoThang(maTk, thang, nam).filter((n) => n.tienDo >= n.nguongCanhBao);
       return { tongThu: thu, tongChi: chi, chenhLech: thu - chi, tongSoDu, chiTheoDanhMuc, sapVuot, ganDay: S.giaoDich.gan(maTk, 5) };
     },
@@ -532,13 +534,13 @@ export function taoDichVu(ctx) {
       if (!tu || !den) throw new DomainError('Vui lòng chọn khoảng thời gian');
       if (tu > den) throw new DomainError('Khoảng thời gian không hợp lệ: ngày bắt đầu sau ngày kết thúc');
       const rows = db.all(`SELECT d.maDanhMuc, d.tenDanhMuc, d.mauSac, SUM(g.soTien) soTien FROM GiaoDich g JOIN DanhMuc d ON d.maDanhMuc=g.maDanhMuc
-        WHERE g.maTaiKhoan=? AND g.loai=? AND substr(g.ngayGiaoDich,1,10)>=? AND substr(g.ngayGiaoDich,1,10)<=? GROUP BY d.maDanhMuc ORDER BY soTien DESC`, maTk, loai, String(tu).slice(0, 10), String(den).slice(0, 10));
+        WHERE g.maTaiKhoan=? AND g.loai=? AND CAST(g.ngayGiaoDich AS DATE)>=? AND CAST(g.ngayGiaoDich AS DATE)<=? GROUP BY d.maDanhMuc, d.tenDanhMuc, d.mauSac ORDER BY soTien DESC`, maTk, loai, String(tu).slice(0, 10), String(den).slice(0, 10));
       const tong = rows.reduce((s, r) => s + r.soTien, 0);
       return rows.map((r) => ({ ...r, tyLe: tong ? Math.round((r.soTien / tong) * 1000) / 10 : 0 }));
     },
     /** Luôn đủ 12 tháng, tháng trống bằng 0. */
     theoThoiGian(maTk, nam) {
-      const rows = db.all("SELECT CAST(substr(ngayGiaoDich,6,2) AS INTEGER) m, loai, SUM(soTien) s FROM GiaoDich WHERE maTaiKhoan=? AND substr(ngayGiaoDich,1,4)=? GROUP BY m, loai", maTk, String(nam));
+      const rows = db.all("SELECT MONTH(ngayGiaoDich) m, loai, SUM(soTien) s FROM GiaoDich WHERE maTaiKhoan=? AND YEAR(ngayGiaoDich)=? GROUP BY MONTH(ngayGiaoDich), loai", maTk, Number(nam));
       return Array.from({ length: 12 }, (_, i) => ({ thang: i + 1,
         thu: rows.find((r) => r.m === i + 1 && r.loai === 'Thu')?.s ?? 0, chi: rows.find((r) => r.m === i + 1 && r.loai === 'Chi')?.s ?? 0 }));
     },
@@ -571,7 +573,7 @@ export function taoDichVu(ctx) {
     async xuatExcel(maTk, tu, den) {
       if (!tu || !den) throw new DomainError('Vui lòng chọn khoảng thời gian');
       if (tu > den) throw new DomainError('Khoảng thời gian không hợp lệ: ngày bắt đầu sau ngày kết thúc');
-      const rows = db.all(`${SEL_GD} WHERE g.maTaiKhoan=? AND substr(g.ngayGiaoDich,1,10)>=? AND substr(g.ngayGiaoDich,1,10)<=? ORDER BY g.ngayGiaoDich`, maTk, String(tu).slice(0, 10), String(den).slice(0, 10));
+      const rows = db.all(`${SEL_GD} WHERE g.maTaiKhoan=? AND CAST(g.ngayGiaoDich AS DATE)>=? AND CAST(g.ngayGiaoDich AS DATE)<=? ORDER BY g.ngayGiaoDich`, maTk, String(tu).slice(0, 10), String(den).slice(0, 10));
       if (rows.length === 0) throw new DomainError('Không có dữ liệu trong khoảng thời gian đã chọn');
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet('Giao dịch');
@@ -624,8 +626,8 @@ export function taoDichVu(ctx) {
         soDangHoatDong: c("SELECT COUNT(*) n FROM TaiKhoan WHERE loaiTaiKhoan='NguoiDung' AND trangThai='HoatDong'"),
         soBiKhoa: c("SELECT COUNT(*) n FROM TaiKhoan WHERE loaiTaiKhoan='NguoiDung' AND trangThai='BiKhoa'"),
         soGiaoDich: c('SELECT COUNT(*) n FROM GiaoDich'),
-        soGiaoDichThangNay: c('SELECT COUNT(*) n FROM GiaoDich WHERE substr(ngayGiaoDich,1,7)=?', d),
-        soNguoiMoiThangNay: c("SELECT COUNT(*) n FROM TaiKhoan WHERE loaiTaiKhoan='NguoiDung' AND substr(ngayTao,1,7)=?", d),
+        soGiaoDichThangNay: c('SELECT COUNT(*) n FROM GiaoDich WHERE CONVERT(char(7), ngayGiaoDich, 126)=?', d),
+        soNguoiMoiThangNay: c("SELECT COUNT(*) n FROM TaiKhoan WHERE loaiTaiKhoan='NguoiDung' AND CONVERT(char(7), ngayTao, 126)=?", d),
       };
     },
     danhMucMacDinh: () => db.all('SELECT * FROM DanhMuc WHERE maTaiKhoan IS NULL ORDER BY laHeThong, maDanhMuc').map((r) => dtoDm(nap.danhMuc(r))),
@@ -663,6 +665,193 @@ export function taoDichVu(ctx) {
       if (!nd) throw new NotFoundError();
       const tb = nv.guiThongBaoHoTro(nd, noiDung, dongHo.bayGio());
       S.thongBao.tao(tb.maTaiKhoan, tb.loai, tb.noiDung);
+    },
+  };
+
+  // ============ Lịch chi tiêu: tổng thu/chi từng ngày trong tháng ============
+  S.lich = {
+    theoThang(maTk, thang, nam) {
+      kiemTraThang(thang, nam);
+      const [tu, den] = gioiHanThang(thang, nam);
+      const rows = db.all(`SELECT CONVERT(char(10), ngayGiaoDich, 126) ngay, loai, SUM(soTien) s, COUNT(*) n FROM GiaoDich
+        WHERE maTaiKhoan=? AND ngayGiaoDich>=? AND ngayGiaoDich<? GROUP BY CONVERT(char(10), ngayGiaoDich, 126), loai ORDER BY ngay`, maTk, tu, den);
+      const theoNgay = new Map();
+      for (const r of rows) {
+        const x = theoNgay.get(r.ngay) ?? { ngay: r.ngay, thu: 0, chi: 0, soGiaoDich: 0 };
+        if (r.loai === LoaiGiaoDich.Thu) x.thu += r.s; else x.chi += r.s;
+        x.soGiaoDich += r.n;
+        theoNgay.set(r.ngay, x);
+      }
+      const ngay = [...theoNgay.values()];
+      const tongThu = ngay.reduce((s, x) => s + x.thu, 0);
+      const tongChi = ngay.reduce((s, x) => s + x.chi, 0);
+      const chiNhieuNhat = ngay.reduce((m, x) => (x.chi > (m?.chi ?? 0) ? x : m), null);
+      const soNgayTrongThang = new Date(Date.UTC(nam, thang, 0)).getUTCDate();
+      // Trung bình chi mỗi ngày: tháng hiện tại tính đến hôm nay, tháng đã qua tính cả tháng
+      const hom = dongHo.homNay(); const ky = `${nam}-${mm(thang)}`;
+      const soNgayDaQua = hom.slice(0, 7) === ky ? Number(hom.slice(8, 10)) : hom.slice(0, 7) > ky ? soNgayTrongThang : 0;
+      return { thang, nam, soNgayTrongThang, ngay, tongThu, tongChi, soNgayCoChi: ngay.filter((x) => x.chi > 0).length,
+        chiTrungBinhNgay: soNgayDaQua ? Math.round(tongChi / soNgayDaQua) : 0, chiNhieuNhat };
+    },
+  };
+
+  // ============ Nhập giao dịch từ file Excel/CSV ============
+  S.nhapGiaoDich = {
+    /** Khớp tên ví/danh mục, mô phỏng số dư theo thứ tự ngày để báo lỗi R2 ngay ở bước xem trước; không ghi CSDL. */
+    async xemTruoc(maTk, tep) {
+      const dong = await docTepNhap(tep);
+      const dsVi = db.all('SELECT * FROM Vi WHERE maTaiKhoan=?', maTk);
+      const dsDm = db.all('SELECT * FROM DanhMuc WHERE (maTaiKhoan IS NULL OR maTaiKhoan=?) AND laHeThong=0', maTk);
+      const tim = (ds, khoa, ten, loc = () => true) => ds.find((x) => loc(x) && x[khoa] === ten) ?? ds.find((x) => loc(x) && boDau(x[khoa]) === boDau(ten));
+      for (const d of dong) {
+        if (d.vi) { d.viKhop = tim(dsVi, 'tenVi', d.vi); if (!d.viKhop) d.loi.push(`Không có ví "${d.vi}"`); }
+        if (d.danhMuc && d.loai) { d.dmKhop = tim(dsDm, 'tenDanhMuc', d.danhMuc, (x) => x.loai === d.loai); if (!d.dmKhop) d.loi.push(`Không có danh mục ${d.loai.toLowerCase()} "${d.danhMuc}"`); }
+      }
+      // Áp theo ngày tăng dần (giống lúc nhập thật) để biết dòng nào làm ví bị âm
+      const soDu = new Map(dsVi.map((v) => [v.maVi, v.soDu]));
+      const thuTu = dong.filter((d) => !d.loi.length).sort((a, c) => a.ngay.localeCompare(c.ngay) || a.dong - c.dong);
+      for (const d of thuTu) {
+        const sd = soDu.get(d.viKhop.maVi);
+        if (d.loai === LoaiGiaoDich.Chi && sd < d.soTien) { d.loi.push(`Số dư ví "${d.viKhop.tenVi}" không đủ tại thời điểm này (còn ${fmt(sd)}đ)`); continue; }
+        soDu.set(d.viKhop.maVi, d.loai === LoaiGiaoDich.Thu ? sd + d.soTien : sd - d.soTien);
+      }
+      const coTrung = (d) => !!db.get('SELECT 1 x FROM GiaoDich WHERE maTaiKhoan=? AND maVi=? AND maDanhMuc=? AND loai=? AND soTien=? AND CAST(ngayGiaoDich AS DATE)=?',
+        maTk, d.viKhop.maVi, d.dmKhop.maDanhMuc, d.loai, d.soTien, d.ngay.slice(0, 10));
+      const hopLe = dong.filter((d) => !d.loi.length).map((d) => ({ dong: d.dong, ngayGiaoDich: d.ngay, loai: d.loai, soTien: d.soTien, ghiChu: d.ghiChu,
+        maVi: d.viKhop.maVi, tenVi: d.viKhop.tenVi, maDanhMuc: d.dmKhop.maDanhMuc, tenDanhMuc: d.dmKhop.tenDanhMuc, coTheTrung: coTrung(d) }));
+      const loi = dong.filter((d) => d.loi.length).map((d) => ({ dong: d.dong, loi: d.loi.join('; ') }));
+      return { tongSoDong: dong.length, hopLe, loi };
+    },
+    /** Nhập các dòng đã xem trước trong MỘT transaction: một dòng lỗi thì không dòng nào được ghi. */
+    nhap(maTk, ds) {
+      if (!Array.isArray(ds) || !ds.length) throw new DomainError('Chưa chọn dòng nào để nhập');
+      if (ds.length > SO_DONG_TOI_DA) throw new DomainError(`Mỗi lần chỉ nhập tối đa ${SO_DONG_TOI_DA} dòng`);
+      const thuTu = ds.map((d, i) => ({ ...d, _i: i })).sort((a, c) => String(a.ngayGiaoDich).localeCompare(String(c.ngayGiaoDich)) || a._i - c._i);
+      return db.giaoDich(() => {
+        let tongThu = 0; let tongChi = 0;
+        for (const d of thuTu) {
+          try {
+            if (!chuanNgay(d.ngayGiaoDich)) throw new DomainError('Ngày không hợp lệ');
+            const g = S.giaoDich.them(maTk, { maVi: d.maVi, maDanhMuc: d.maDanhMuc, soTien: d.soTien, loai: d.loai, ngayGiaoDich: chuanNgay(d.ngayGiaoDich), ghiChu: d.ghiChu ?? null });
+            if (g.loai === LoaiGiaoDich.Thu) tongThu += g.soTien; else tongChi += g.soTien;
+          } catch (e) {
+            const ten = d.dong ? `Dòng ${d.dong}` : `Mục ${d._i + 1}`;
+            if (e instanceof NotFoundError) throw new DomainError(`${ten}: ví hoặc danh mục không tồn tại`);
+            if (e instanceof DomainError) throw new DomainError(`${ten}: ${e.message}. Chưa nhập giao dịch nào.`);
+            throw e;
+          }
+        }
+        return { soDaNhap: thuTu.length, tongThu, tongChi };
+      });
+    },
+    fileMau(maTk) {
+      const vi = db.get('SELECT TOP 1 tenVi FROM Vi WHERE maTaiKhoan=? ORDER BY maVi', maTk);
+      return taoFileMau({ tenVi: vi?.tenVi, homNay: dongHo.homNay() });
+    },
+  };
+
+  // ============ Lập kế hoạch tài chính tháng (R13) ============
+  const thangLui = (thang, nam, k) => { const d = new Date(Date.UTC(nam, thang - 1 - k, 1)); return [d.getUTCMonth() + 1, d.getUTCFullYear()]; };
+  const napKeHoach = (r) => (r ? new KeHoachThang(r) : null);
+  S.keHoach = {
+    _lay: (maTk, thang, nam) => napKeHoach(db.get('SELECT * FROM KeHoachThang WHERE maTaiKhoan=? AND thang=? AND nam=?', maTk, thang, nam)),
+    /** Dữ liệu đầu vào của thuật toán gợi ý: chi trung bình 3 tháng trước, khoản định kỳ, thu nhập, nhu cầu các mục tiêu. */
+    _duLieu(maTk, thang, nam) {
+      const [t3, n3] = thangLui(thang, nam, 3);
+      const tu = batDauThang(t3, n3); const den = batDauThang(thang, nam);
+      const chi = db.all(`SELECT d.maDanhMuc, d.tenDanhMuc, d.mauSac, COALESCE(SUM(g.soTien),0) tong FROM DanhMuc d
+        LEFT JOIN GiaoDich g ON g.maDanhMuc=d.maDanhMuc AND g.maTaiKhoan=? AND g.ngayGiaoDich>=? AND g.ngayGiaoDich<?
+        WHERE (d.maTaiKhoan IS NULL OR d.maTaiKhoan=?) AND d.loai='Chi' AND d.laHeThong=0
+        GROUP BY d.maDanhMuc, d.tenDanhMuc, d.mauSac ORDER BY d.maDanhMuc`, maTk, tu, den, maTk);
+      const dinhKy = db.all(`SELECT g.maDanhMuc, g.soTien, g.loai, g.ngayTrongThang, g.ghiChu, d.tenDanhMuc FROM GiaoDichDinhKy g
+        JOIN DanhMuc d ON d.maDanhMuc=g.maDanhMuc WHERE g.maTaiKhoan=? AND g.dangBat=1 ORDER BY g.ngayTrongThang`, maTk);
+      const thuTB = db.get("SELECT COALESCE(SUM(soTien),0) s FROM GiaoDich WHERE maTaiKhoan=? AND loai='Thu' AND ngayGiaoDich>=? AND ngayGiaoDich<?", maTk, tu, den).s / 3;
+      const homNay = dongHo.homNay(); const dauThang = `${nam}-${mm(thang)}-01`;
+      const mocTinh = homNay > dauThang ? homNay : dauThang;
+      const mucTieu = db.all('SELECT * FROM MucTieuTietKiem WHERE maTaiKhoan=?', maTk).map(nap.mucTieu).filter((m) => !m.daHoanThanh() && m.hanChot >= mocTinh)
+        .map((m) => ({ maMucTieu: m.maMucTieu, tenMucTieu: m.tenMucTieu, canMoiThang: m.soTienCanMoiThang(mocTinh), hanChot: m.hanChot }));
+      const coDinh = (ma) => dinhKy.filter((d) => d.loai === 'Chi' && d.maDanhMuc === ma).reduce((s, d) => s + d.soTien, 0);
+      return {
+        danhMuc: chi.map((c) => ({ maDanhMuc: c.maDanhMuc, tenDanhMuc: c.tenDanhMuc, mauSac: c.mauSac, trungBinh3Thang: Math.round(c.tong / 3), coDinh: coDinh(c.maDanhMuc) })),
+        chiCoDinh: dinhKy.filter((d) => d.loai === 'Chi'), thuCoDinh: dinhKy.filter((d) => d.loai === 'Thu'),
+        thuTrungBinh: Math.round(thuTB), mucTieu,
+      };
+    },
+    /** Bước 1–2: hệ thống tự điền thu nhập và đề xuất phân bổ; người dùng chỉ xem lại và sửa nếu muốn. */
+    goiY(maTk, thang, nam, phuongPhap = PhuongPhapKeHoach.LichSu, thuNhap = null) {
+      kiemTraThang(thang, nam);
+      if (!Object.values(PhuongPhapKeHoach).includes(phuongPhap)) throw new DomainError('Phương pháp lập kế hoạch không hợp lệ');
+      const kh = this._lay(maTk, thang, nam);
+      const dl = this._duLieu(maTk, thang, nam);
+      const thuDinhKy = dl.thuCoDinh.reduce((s, d) => s + d.soTien, 0);
+      let thuNhapDuKien; let nguonThuNhap;
+      if (Number(thuNhap) > 0) { thuNhapDuKien = Math.round(Number(thuNhap)); nguonThuNhap = 'Người dùng nhập'; }
+      else if (kh) { thuNhapDuKien = kh.thuNhapDuKien; nguonThuNhap = 'Kế hoạch đã lập'; }
+      else if (thuDinhKy > 0) { thuNhapDuKien = thuDinhKy; nguonThuNhap = 'Các khoản thu định kỳ (lương...)'; }
+      else { thuNhapDuKien = Math.round(dl.thuTrungBinh / 100_000) * 100_000; nguonThuNhap = 'Thu nhập trung bình 3 tháng gần đây'; }
+      const tietKiemCan = dl.mucTieu.reduce((s, m) => s + m.canMoiThang, 0);
+      const g = KeHoachThang.goiYPhanBo(thuNhapDuKien, phuongPhap, dl.danhMuc, tietKiemCan);
+      const hienTai = new Map(db.all('SELECT maDanhMuc, hanMuc FROM NganSach WHERE maTaiKhoan=? AND thang=? AND nam=?', maTk, thang, nam).map((r) => [r.maDanhMuc, r.hanMuc]));
+      // Đã có kế hoạch: mặc định giữ con số người dùng đã chốt
+      if (kh && !(Number(thuNhap) > 0)) {
+        g.phanBo.forEach((p) => { if (hienTai.has(p.maDanhMuc)) p.deXuat = hienTai.get(p.maDanhMuc); });
+        g.tietKiem = kh.tietKiemDuKien;
+        g.tongChi = g.phanBo.reduce((s, p) => s + p.deXuat, 0);
+        g.conLai = thuNhapDuKien - g.tongChi - g.tietKiem;
+      }
+      return { thang, nam, phuongPhap, daCoKeHoach: !!kh, thuNhapDuKien, nguonThuNhap, thuTrungBinh: dl.thuTrungBinh,
+        tietKiemCan, mucTieu: dl.mucTieu, chiCoDinh: dl.chiCoDinh, thuCoDinh: dl.thuCoDinh,
+        phanBo: g.phanBo.map((p) => ({ ...p, hienTai: hienTai.get(p.maDanhMuc) ?? 0 })), tietKiem: g.tietKiem, tongChi: g.tongChi, conLai: g.conLai, canhBao: g.canhBao };
+    },
+    /** Bước 3: một lần bấm "Áp dụng" -> lưu kế hoạch và tạo/cập nhật toàn bộ ngân sách của tháng trong MỘT transaction. */
+    apDung(maTk, { thang, nam, thuNhapDuKien, tietKiemDuKien, phuongPhap, phanBo } = {}) {
+      thang = Number(thang); nam = Number(nam);
+      kiemTraThang(thang, nam);
+      const kh = KeHoachThang.lap(maTk, thang, nam, Number(thuNhapDuKien), Number(tietKiemDuKien ?? 0), phuongPhap ?? PhuongPhapKeHoach.LichSu, dongHo.bayGio());
+      if (!Array.isArray(phanBo)) throw new DomainError('Thiếu phần phân bổ chi');
+      for (const p of phanBo) {
+        if (!Number.isInteger(Number(p.hanMuc)) || Number(p.hanMuc) < 0) throw new DomainError('Hạn mức phân bổ phải là số nguyên không âm');
+        const dm = S.danhMuc.layDungDuoc(maTk, Number(p.maDanhMuc));
+        if (dm.loai !== LoaiGiaoDich.Chi || dm.laHeThong) throw new DomainError(`Không thể phân bổ cho danh mục ${dm.tenDanhMuc}`);
+      }
+      db.giaoDich(() => {
+        const cu = this._lay(maTk, thang, nam);
+        if (cu) db.run('UPDATE KeHoachThang SET thuNhapDuKien=?, tietKiemDuKien=?, phuongPhap=?, ngayLap=? WHERE maKeHoach=?', kh.thuNhapDuKien, kh.tietKiemDuKien, kh.phuongPhap, kh.ngayLap, cu.maKeHoach);
+        else db.run('INSERT INTO KeHoachThang (maTaiKhoan, thang, nam, thuNhapDuKien, tietKiemDuKien, phuongPhap, ngayLap) VALUES (?,?,?,?,?,?,?)', maTk, thang, nam, kh.thuNhapDuKien, kh.tietKiemDuKien, kh.phuongPhap, kh.ngayLap);
+        for (const p of phanBo) {
+          const han = Number(p.hanMuc);
+          const ns = nap.nganSach(db.get('SELECT * FROM NganSach WHERE maTaiKhoan=? AND maDanhMuc=? AND thang=? AND nam=?', maTk, Number(p.maDanhMuc), thang, nam));
+          if (ns && han === 0) db.run('DELETE FROM NganSach WHERE maNganSach=?', ns.maNganSach);
+          else if (ns) {
+            ns.capNhatHanMuc(han, S.nganSach.soDaChi(maTk, ns.maDanhMuc, thang, nam)); // R6: tính lại hai cờ cảnh báo
+            db.run('UPDATE NganSach SET hanMuc=?, daCanhBaoNguong=?, daCanhBaoVuot=? WHERE maNganSach=?', ns.hanMuc, +ns.daCanhBaoNguong, +ns.daCanhBaoVuot, ns.maNganSach);
+          } else if (han > 0) S.nganSach.lap(maTk, { maDanhMuc: Number(p.maDanhMuc), hanMuc: han, thang, nam });
+        }
+      });
+      return this.theoDoi(maTk, thang, nam);
+    },
+    /** Theo dõi kế hoạch so với thực tế và dự báo cuối tháng. */
+    theoDoi(maTk, thang, nam) {
+      kiemTraThang(thang, nam);
+      const kh = this._lay(maTk, thang, nam);
+      if (!kh) return { thang, nam, coKeHoach: false };
+      const nganSach = S.nganSach.danhSachTheoThang(maTk, thang, nam);
+      const [tu, den] = gioiHanThang(thang, nam);
+      const tong = (dk) => db.get(`SELECT COALESCE(SUM(soTien),0) s FROM GiaoDich WHERE maTaiKhoan=? AND ngayGiaoDich>=? AND ngayGiaoDich<? AND ${dk}`, maTk, tu, den).s;
+      const thuThucTe = tong("loai='Thu'");
+      const chiThucTe = tong("loai='Chi' AND maMucTieu IS NULL");
+      const tietKiemThucTe = tong("loai='Chi' AND maMucTieu IS NOT NULL");
+      const soNgay = new Date(Date.UTC(nam, thang, 0)).getUTCDate();
+      const hom = dongHo.homNay(); const ky = `${nam}-${mm(thang)}`;
+      const ngayDaQua = hom.slice(0, 7) === ky ? Number(hom.slice(8, 10)) : hom.slice(0, 7) > ky ? soNgay : 0;
+      const tongChiKeHoach = nganSach.reduce((s, n) => s + n.hanMuc, 0);
+      const duBaoChi = KeHoachThang.duBaoChiCaThang(chiThucTe, ngayDaQua, soNgay);
+      const nhanXet = kh.danhGia({ tongChiKeHoach, daChi: chiThucTe, duBaoChi, tietKiemThucTe,
+        danhMucVuot: nganSach.filter((n) => n.tienDo > 100).map((n) => n.tenDanhMuc), thangDaQua: ngayDaQua >= soNgay });
+      return { thang, nam, coKeHoach: true, phuongPhap: kh.phuongPhap, ngayLap: kh.ngayLap,
+        thuNhapDuKien: kh.thuNhapDuKien, tietKiemDuKien: kh.tietKiemDuKien, tongChiKeHoach, conLaiKeHoach: kh.tinhConLai(tongChiKeHoach),
+        thuThucTe, chiThucTe, tietKiemThucTe, duBaoChi, duBaoConLai: Math.max(thuThucTe, kh.thuNhapDuKien) - duBaoChi - kh.tietKiemDuKien,
+        ngayDaQua, soNgayTrongThang: soNgay, nganSach, nhanXet };
     },
   };
 

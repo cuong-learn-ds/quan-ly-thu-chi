@@ -1,34 +1,56 @@
 import { api, PHIEN, CHE_DO, h, bo, thongBao, truong, chay, hopThoai } from './core.js';
 
 CHE_DO.ap();
-/** Hộp thoại mã QR: quét bằng điện thoại cùng Wi-Fi để mở web. */
-async function hienQR() {
-  const noi = h('div', { class: 'qrbox' }, h('p', { class: 'muted' }, 'Đang tạo mã QR…'));
-  const dlg = hopThoai('Dùng trên điện thoại', h('div', {}, noi, h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: () => dlg.dong() }, 'Đóng'))));
+/** Nội dung "Điện thoại": thẻ mã QR (chép/in, chọn địa chỉ mạng) và thẻ hướng dẫn từng bước. */
+async function noiDungDienThoai(goc) {
+  const the = h('div', { class: 'card' }, h('h2', {}, 'Quét để mở trên điện thoại'), h('p', { class: 'muted' }, 'Đang tạo mã QR…'));
+  const huongDan = h('div', { class: 'card' }, h('h2', {}, 'Cách dùng'),
+    h('ol', { class: 'steps' },
+      h('li', {}, 'Điện thoại và máy tính phải ', h('b', {}, 'cùng một Wi-Fi'), '.'),
+      h('li', {}, 'Mở camera điện thoại, quét mã QR, bấm vào đường dẫn hiện ra.'),
+      h('li', {}, 'Đăng nhập bằng tài khoản của bạn.'),
+      h('li', {}, h('b', {}, 'Thêm vào màn hình chính: '), 'iPhone dùng Safari → Chia sẻ → Thêm vào MH chính. Android dùng Chrome → ⋮ → Thêm vào màn hình chính.')),
+    h('p', { class: 'small muted' }, 'Chỉ dùng ở mạng Wi-Fi tin cậy (nhà bạn). Địa chỉ này không dùng được ngoài mạng nhà, và máy tính phải đang bật ứng dụng. Kết nối là http thường, không mã hóa. Nếu điện thoại không mở được, hãy cho phép Node.js qua tường lửa Windows (mạng riêng tư).'));
+  goc.append(h('div', { class: 'dtgrid' }, the, huongDan));
   try {
     const ds = await api('GET', '/ket-noi-dien-thoai');
-    bo(noi);
-    if (!ds.length) { noi.append(h('p', { class: 'muted' }, 'Không tìm thấy địa chỉ mạng của máy chủ. Hãy kết nối Wi-Fi hoặc mạng LAN rồi thử lại.')); return; }
-    noi.append(h('p', {}, 'Mở camera điện thoại (kết nối cùng Wi-Fi với máy này) và quét mã để dùng web trên điện thoại.'),
-      ...ds.map((x) => { const q = h('div', { class: 'qr' }); q.innerHTML = x.svg; return h('div', { class: 'qritem' }, q, h('a', { href: x.url, target: '_blank', rel: 'noopener' }, x.url)); }),
-      h('p', { class: 'small muted' }, 'Nếu điện thoại không mở được: kiểm tra cùng Wi-Fi, và cho phép Node.js qua tường lửa Windows (mạng riêng tư). Trên điện thoại có thể chọn "Thêm vào màn hình chính" để dùng như ứng dụng.'));
-  } catch (e) { bo(noi).append(h('p', { class: 'err' }, e.message)); }
+    bo(the).append(h('h2', {}, 'Quét để mở trên điện thoại'));
+    if (!ds.length) { the.append(h('p', { class: 'muted' }, 'Không tìm thấy địa chỉ mạng của máy chủ. Hãy kết nối Wi-Fi hoặc mạng LAN rồi thử lại.')); return; }
+    const q = h('div', { class: 'qr' }); const dc = h('div', { class: 'qrurl' });
+    const chon = h('select', { 'aria-label': 'Chọn địa chỉ mạng' }, ds.map((x, i) => h('option', { value: i }, `${x.url.replace(/^http:\/\//, '').replace(/:\d+$/, '')} · ${x.ten}`)));
+    const ve = () => { const x = ds[chon.value]; q.innerHTML = x.svg; dc.textContent = x.url; };
+    chon.onchange = ve; ve();
+    const chep = h('button', { class: 'btn sm', onclick: async () => { try { await navigator.clipboard.writeText(ds[chon.value].url); thongBao('Đã chép địa chỉ'); } catch { thongBao('Không chép được, hãy chép thủ công'); } } }, 'Chép địa chỉ');
+    const inQR = h('button', { class: 'btn sm', onclick: () => {
+      const w = window.open('', '_blank'); if (!w) return;
+      w.document.write(`<title>Mã QR</title><body style="font-family:sans-serif;text-align:center;padding:40px"><h2>Quét để mở Quản lý thu chi</h2>${ds[chon.value].svg}<p style="font-size:20px"><b>${ds[chon.value].url}</b></p></body>`);
+      w.document.close(); w.focus(); w.print();
+    } }, 'In mã QR');
+    the.append(h('div', { class: 'qrbox' }, q, dc, h('div', { class: 'actions' }, chep, inQR)),
+      h('label', { class: 'small muted qrsel' }, 'Địa chỉ mạng (nếu quét không vào được, thử cái khác)', chon));
+  } catch (e) { bo(the).append(h('p', { class: 'err' }, e.message)); }
 }
-const nutQR = () => h('button', { class: 'themebtn', title: 'Dùng trên điện thoại (quét mã QR)', 'aria-label': 'Hiện mã QR để dùng trên điện thoại', onclick: hienQR }, '▦');
+/** Trang Điện thoại khi đã đăng nhập; ở trang đăng nhập (chưa có khung) thì mở dạng hộp thoại. */
+function hienQR() {
+  if (PHIEN.token) { location.hash = '#/dien-thoai'; return; }
+  const noi = h('div', {}); const dlg = hopThoai('Dùng trên điện thoại', h('div', {}, noi, h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: () => dlg.dong() }, 'Đóng'))));
+  noiDungDienThoai(noi);
+}
+const nutQR = () => h('button', { class: 'themebtn', title: 'Dùng trên điện thoại (quét mã QR)', 'aria-label': 'Mở trang dùng trên điện thoại (mã QR)', onclick: hienQR }, '▦');
 const nutChuDe = () => { const b = h('button', { class: 'themebtn', title: 'Đổi giao diện sáng/tối', 'aria-label': 'Đổi giao diện sáng hoặc tối' }); const ve = () => { b.textContent = CHE_DO.dangToi() ? '☀' : '☾'; }; b.onclick = () => { CHE_DO.doi(); ve(); }; ve(); return b; };
-import { trangTongQuan, trangGiaoDich, trangVi, trangDanhMuc, trangDinhKy } from './pages-ghi-chep.js';
-import { trangNganSach, trangMucTieu, trangBaoCao, trangThongBao, trangCaiDat, trangTaiKhoan, trangQuanTri, trangHoTro, trangKiemToan } from './pages-ke-hoach.js';
+import { trangTongQuan, trangGiaoDich, trangLich, trangVi, trangDanhMuc, trangDinhKy } from './pages-ghi-chep.js';
+import { trangKeHoach, trangNganSach, trangMucTieu, trangBaoCao, trangThongBao, trangCaiDat, trangTaiKhoan, trangQuanTri, trangHoTro, trangKiemToan } from './pages-ke-hoach.js';
 
 const app = document.getElementById('app');
 const ICON = {
-  tq: 'M3 12l9-8 9 8M5 10v10h5v-6h4v6h5V10', gd: 'M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3', vi: 'M3 7h16a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM3 7l12-3v3M16 13h3',
+  tq: 'M3 12l9-8 9 8M5 10v10h5v-6h4v6h5V10', kh: 'M9 4h6v3H9zM7 5H5v16h14V5h-2M8 12l2 2 4-4M8 17h8',gd: 'M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3', vi: 'M3 7h16a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM3 7l12-3v3M16 13h3',
   dm: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', ns: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 3v9l6 3', mt: 'M12 21s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.5-7 10-7 10z',
   bc: 'M4 20V10M10 20V4M16 20v-8M22 20H2', tb: 'M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6M10 19a2 2 0 004 0', cd: 'M12 8a4 4 0 100 8 4 4 0 000-8zM12 2v3M12 19v3M2 12h3M19 12h3', tk: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',
-  dk: 'M4 12a8 8 0 0114-5.3M20 4v4h-4M20 12a8 8 0 01-14 5.3M4 20v-4h4', qt: 'M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z',
+  dk: 'M4 12a8 8 0 0114-5.3M20 4v4h-4M20 12a8 8 0 01-14 5.3M4 20v-4h4', li: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2', qt: 'M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z',
 };
 const icon = (k) => h('svg:svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }, h('svg:path', { d: ICON[k] }));
 
-const MENU_ND = [['#/tong-quan', 'tq', 'Tổng quan'], ['#/giao-dich', 'gd', 'Giao dịch'], ['#/vi', 'vi', 'Ví'], ['#/dinh-ky', 'dk', 'Định kỳ'], ['#/danh-muc', 'dm', 'Danh mục'], ['#/ngan-sach', 'ns', 'Ngân sách'],
+const MENU_ND = [['#/tong-quan', 'tq', 'Tổng quan'], ['#/ke-hoach', 'kh', 'Kế hoạch'], ['#/giao-dich', 'gd', 'Giao dịch'], ['#/lich', 'li', 'Lịch'], ['#/vi', 'vi', 'Ví'], ['#/dinh-ky', 'dk', 'Định kỳ'], ['#/danh-muc', 'dm', 'Danh mục'], ['#/ngan-sach', 'ns', 'Ngân sách'],
   ['#/muc-tieu', 'mt', 'Mục tiêu'], ['#/bao-cao', 'bc', 'Báo cáo'], ['#/thong-bao', 'tb', 'Thông báo'], ['#/cai-dat', 'cd', 'Nhắc nhở'], ['#/tai-khoan', 'tk', 'Tài khoản']];
 const TK = ['#/tai-khoan', 'tk', 'Tài khoản'];
 // Mỗi vai trò đăng nhập có menu riêng; Khách (chưa đăng nhập) chỉ thấy trang Đăng nhập / Đăng ký.
@@ -41,10 +63,11 @@ const MENU = {
 const menuCua = () => MENU[PHIEN.vaiTro] ?? MENU_ND;
 const trangMacDinh = () => menuCua()[0][0].slice(2);
 const TRANG = {
-  'tong-quan': ['Tổng quan', trangTongQuan], 'giao-dich': ['Giao dịch', trangGiaoDich], vi: ['Ví của tôi', trangVi], 'dinh-ky': ['Giao dịch định kỳ', trangDinhKy], 'danh-muc': ['Danh mục', trangDanhMuc],
+  'tong-quan': ['Tổng quan', trangTongQuan], 'ke-hoach': ['Kế hoạch tài chính tháng', trangKeHoach], 'giao-dich': ['Giao dịch', trangGiaoDich], lich: ['Lịch chi tiêu', trangLich], vi: ['Ví của tôi', trangVi], 'dinh-ky': ['Giao dịch định kỳ', trangDinhKy], 'danh-muc': ['Danh mục', trangDanhMuc],
   'ngan-sach': ['Ngân sách', trangNganSach], 'muc-tieu': ['Mục tiêu tiết kiệm', trangMucTieu], 'bao-cao': ['Báo cáo thống kê', trangBaoCao],
   'thong-bao': ['Thông báo', trangThongBao], 'cai-dat': ['Cài đặt nhắc nhở', trangCaiDat], 'tai-khoan': ['Tài khoản', trangTaiKhoan], 'quan-tri': ['Quản trị hệ thống', trangQuanTri],
   'ho-tro': ['Hỗ trợ người dùng', trangHoTro], 'kiem-toan': ['Thống kê hệ thống (chỉ đọc)', trangKiemToan],
+  'dien-thoai': ['Điện thoại', noiDungDienThoai],
 };
 
 let dem = null; let timerChuong = null;
@@ -81,7 +104,7 @@ async function dinhTuyen() {
   const khoa = (location.hash.replace(/^#\/?/, '') || '').split('?')[0];
   if (khoa === 'dang-nhap' || khoa === 'dang-ky') return veXacThuc(khoa);
   if (!PHIEN.token) { location.hash = '#/dang-nhap'; return; }
-  if (!TRANG[khoa] || !menuCua().some(([href]) => href === `#/${khoa}`)) { location.hash = `#/${trangMacDinh()}`; return; }
+  if (!TRANG[khoa] || (khoa !== 'dien-thoai' && !menuCua().some(([href]) => href === `#/${khoa}`))) { location.hash = `#/${trangMacDinh()}`; return; }
   const [ten, ham] = TRANG[khoa];
   const { tieuDe, noiDung } = veKhung(khoa);
   tieuDe.textContent = ten; document.title = `${ten} · Quản lý thu chi`;

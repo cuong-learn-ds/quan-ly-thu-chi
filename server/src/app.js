@@ -26,6 +26,7 @@ export function taoApp({ db, dongHo = new DongHoVietNam(), ocr, khoaJwt = proces
   const app = express();
   app.use(express.json({ limit: '1mb' }));
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 6 * 1024 * 1024 } });
+  const uploadNhap = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
   const bao = (fn) => (req, res, next) => Promise.resolve().then(() => fn(req, res)).then((kq) => { if (!res.headersSent) { if (kq === undefined) res.status(204).end(); else res.json(kq); } }).catch(next);
 
   // ---- xác thực (R8: token cũ của tài khoản bị khóa bị từ chối ở request kế tiếp)
@@ -50,17 +51,19 @@ export function taoApp({ db, dongHo = new DongHoVietNam(), ocr, khoaJwt = proces
     // Chỉ lấy 1 địa chỉ: card Wi-Fi/LAN thật, bỏ card ảo (VirtualBox, VMware, Hyper-V, WSL, Docker...)
     const ao = /virtual|vmware|vbox|hyper-v|vethernet|wsl|docker|bluetooth|loopback|tap-|tailscale|zerotier/i;
     const rieng = /^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))/;
-    const tatCa = Object.entries(networkInterfaces()).flatMap(([ten, ds]) => (ds ?? []).filter((i) => i.family === 'IPv4' && !i.internal && !i.address.startsWith('169.254.')).map((i) => ({ ip: i.address, ao: ao.test(ten) || i.address.startsWith('192.168.56.') })));
+    const tatCa = Object.entries(networkInterfaces()).flatMap(([ten, ds]) => (ds ?? []).filter((i) => i.family === 'IPv4' && !i.internal && !i.address.startsWith('169.254.')).map((i) => ({ ip: i.address, ten, ao: ao.test(ten) || i.address.startsWith('192.168.56.') })));
     tatCa.sort((x, y) => (x.ao - y.ao) || (Number(rieng.test(y.ip)) - Number(rieng.test(x.ip))));
-    const diaChi = tatCa.slice(0, 1).map((x) => x.ip);
-    return Promise.all(diaChi.map(async (ip) => { const url = `http://${ip}:${cong}`; return { url, svg: await QRCode.toString(url, { type: 'svg', margin: 1, width: 220 }) }; }));
+    // Trả các card thật (đã bỏ card ảo), card tốt nhất đứng đầu để làm mặc định; người dùng có thể chọn card khác nếu quét không vào được
+    const thuc = tatCa.filter((x) => !x.ao);
+    const ds = (thuc.length ? thuc : tatCa.slice(0, 1)).slice(0, 4);
+    return Promise.all(ds.map(async (x) => { const url = `http://${x.ip}:${cong}`; return { url, ten: x.ten, svg: await QRCode.toString(url, { type: 'svg', margin: 1, width: 220 }) }; }));
   }));
   api.post('/auth/dang-ky', bao((req) => { S.taiKhoan.dangKy(req.body); return { message: 'Đăng ký thành công' }; }));
   api.post('/auth/dang-nhap', bao((req) => S.taiKhoan.dangNhap(req.body)));
 
   api.use(dangNhapBatBuoc);
   // Các chức năng cá nhân chỉ dành cho Người dùng; các vai trò nội bộ dùng đường dẫn /admin riêng.
-  api.use(['/vi', '/danh-muc', '/giao-dich', '/hoa-don', '/ngan-sach', '/muc-tieu', '/bao-cao', '/thong-bao', '/chuyen-tien', '/giao-dich-dinh-ky'], vaiTro('NguoiDung'));
+  api.use(['/vi', '/danh-muc', '/giao-dich', '/hoa-don', '/ngan-sach', '/muc-tieu', '/bao-cao', '/thong-bao', '/chuyen-tien', '/giao-dich-dinh-ky', '/ke-hoach'], vaiTro('NguoiDung'));
   api.get('/tai-khoan/toi', bao((req) => S.taiKhoan.toi(req.maTk)));
   api.put('/tai-khoan/toi', bao((req) => S.taiKhoan.capNhat(req.maTk, req.body?.hoTen)));
   api.put('/tai-khoan/mat-khau', bao((req) => S.taiKhoan.doiMatKhau(req.maTk, req.body)));
@@ -76,6 +79,15 @@ export function taoApp({ db, dongHo = new DongHoVietNam(), ocr, khoaJwt = proces
   api.delete('/danh-muc/:id', bao((req) => S.danhMuc.xoa(req.maTk, +req.params.id, req.query.chuyenSang)));
 
   api.get('/giao-dich', bao((req) => S.giaoDich.timKiem(req.maTk, req.query)));
+  // Nhập giao dịch từ file: xem trước (không ghi CSDL) -> xác nhận nhập trong một transaction
+  api.get('/giao-dich/nhap/mau', async (req, res, next) => {
+    try {
+      const buf = await S.nhapGiaoDich.fileMau(req.maTk);
+      res.set({ 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': 'attachment; filename="mau-nhap-giao-dich.xlsx"' }).send(buf);
+    } catch (e) { next(e); }
+  });
+  api.post('/giao-dich/nhap/xem-truoc', uploadNhap.single('tep'), bao((req) => S.nhapGiaoDich.xemTruoc(req.maTk, req.file)));
+  api.post('/giao-dich/nhap', bao((req) => S.nhapGiaoDich.nhap(req.maTk, req.body?.dong)));
   api.get('/giao-dich/:id/hoa-don', bao((req) => S.giaoDich.chiTietHoaDon(req.maTk, +req.params.id) ?? {}));
   api.post('/giao-dich', bao((req) => S.giaoDich.them(req.maTk, req.body)));
   api.put('/giao-dich/:id', bao((req) => S.giaoDich.sua(req.maTk, +req.params.id, req.body)));
@@ -98,6 +110,11 @@ export function taoApp({ db, dongHo = new DongHoVietNam(), ocr, khoaJwt = proces
   api.put('/ngan-sach/:id', bao((req) => S.nganSach.sua(req.maTk, +req.params.id, req.body)));
   api.delete('/ngan-sach/:id', bao((req) => S.nganSach.xoa(req.maTk, +req.params.id)));
 
+  // Lập kế hoạch tài chính tháng: gợi ý tự động -> áp dụng một lần -> theo dõi so với thực tế
+  api.get('/ke-hoach', bao((req) => S.keHoach.theoDoi(req.maTk, ...thangNam(req))));
+  api.get('/ke-hoach/goi-y', bao((req) => S.keHoach.goiY(req.maTk, ...thangNam(req), req.query.phuongPhap ?? 'LichSu', req.query.thuNhap)));
+  api.post('/ke-hoach', bao((req) => S.keHoach.apDung(req.maTk, req.body)));
+
   api.get('/muc-tieu', bao((req) => S.mucTieu.danhSach(req.maTk)));
   api.post('/muc-tieu', bao((req) => S.mucTieu.tao(req.maTk, req.body)));
   api.put('/muc-tieu/:id', bao((req) => S.mucTieu.sua(req.maTk, +req.params.id, req.body)));
@@ -107,6 +124,7 @@ export function taoApp({ db, dongHo = new DongHoVietNam(), ocr, khoaJwt = proces
   api.get('/bao-cao/tong-quan', bao((req) => S.baoCao.tongQuan(req.maTk, ...thangNam(req))));
   api.get('/bao-cao/theo-danh-muc', bao((req) => S.baoCao.theoDanhMuc(req.maTk, req.query.tu, req.query.den, req.query.loai ?? 'Chi')));
   api.get('/bao-cao/theo-thoi-gian', bao((req) => S.baoCao.theoThoiGian(req.maTk, Number(req.query.nam ?? dongHo.bayGio().slice(0, 4)))));
+  api.get('/bao-cao/lich', bao((req) => S.lich.theoThang(req.maTk, ...thangNam(req))));
   api.get('/bao-cao/thang', bao((req) => S.baoCao.danhSachBaoCaoThang(req.maTk)));
   api.get('/bao-cao/excel', async (req, res, next) => {
     try {
@@ -145,9 +163,9 @@ export function taoApp({ db, dongHo = new DongHoVietNam(), ocr, khoaJwt = proces
   app.use((err, req, res, _next) => {
     if (err instanceof DomainError) return res.status(400).json({ message: err.message });
     if (err instanceof NotFoundError) return res.status(404).json({ message: err.message });
-    if (err instanceof multer.MulterError) return res.status(400).json({ message: err.code === 'LIMIT_FILE_SIZE' ? 'Ảnh vượt quá 5 MB' : 'Tệp tải lên không hợp lệ' });
+    if (err instanceof multer.MulterError) return res.status(400).json({ message: err.code === 'LIMIT_FILE_SIZE' ? (req.path.includes('/nhap') ? 'File vượt quá 2 MB' : 'Ảnh vượt quá 5 MB') : 'Tệp tải lên không hợp lệ' });
     if (err?.type === 'entity.parse.failed') return res.status(400).json({ message: 'Dữ liệu gửi lên không đúng định dạng JSON' });
-    if (String(err?.message).includes('UNIQUE constraint')) return res.status(400).json({ message: 'Dữ liệu bị trùng' });
+    if (err?.laTrung) return res.status(400).json({ message: 'Dữ liệu bị trùng' });
     console.error(err);
     res.status(500).json({ message: 'Đã xảy ra lỗi, vui lòng thử lại' });
   });

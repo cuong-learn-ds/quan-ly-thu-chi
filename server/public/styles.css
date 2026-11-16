@@ -113,8 +113,12 @@ td.r, th.r { text-align: right; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill.warn { background: #4a3410; color: #fcd34d; } :root:not([data-theme="light"]) .pill.bad { background: #4c1d1d; color: #fca5a5; } :root:not([data-theme="light"]) .pill.ok { background: #14391f; color: #86efac; } }
 :root[data-theme="dark"] .pill.warn { background: #4a3410; color: #fcd34d; } :root[data-theme="dark"] .pill.bad { background: #4c1d1d; color: #fca5a5; } :root[data-theme="dark"] .pill.ok { background: #14391f; color: #86efac; }
 
-.qrbox { text-align: center; } .qritem { margin: 12px 0; } .qr { display: inline-block; background: #fff; padding: 8px; border-radius: 12px; border: 1px solid var(--line); } .qr svg { width: 220px; height: 220px; display: block; }
-.qritem a { display: block; margin-top: 6px; font-weight: 600; color: var(--primary-d); word-break: break-all; }
+.qrbox { text-align: center; } .qr { display: inline-block; background: #fff; padding: 8px; border-radius: 12px; border: 1px solid var(--line); } .qr svg { width: 220px; height: 220px; display: block; }
+.qrurl { margin-top: 10px; font-weight: 700; word-break: break-all; } .qrbox .actions { justify-content: center; margin-top: 10px; }
+.qrsel { display: block; margin-top: 14px; text-align: center; } .qrsel select { display: block; width: 100%; margin-top: 6px; }
+.dtgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; } .dtgrid h2 { margin-top: 0; font-size: 1.05rem; }
+.steps { padding-left: 20px; line-height: 1.7; } .steps li { margin-bottom: 6px; }
+@media (max-width: 760px) { .dtgrid { grid-template-columns: 1fr; } }
 .authtools { position: fixed; top: 14px; right: 14px; display: flex; gap: 8px; z-index: 3; } .authtools .themebtn { position: static; background: var(--card); }
 .fab { display: none; }
 
@@ -154,3 +158,45 @@ td.r, th.r { text-align: right; }
   .auth { align-items: start; padding-top: 70px; } .auth .card { padding: 22px; }
 }
 @media (max-width: 520px) { .g4 { grid-template-columns: 1fr; } .form .two { grid-template-columns: 1fr; } .stat .val { font-size: 21px; } }
+
+/* ----- lịch chi tiêu ----- */
+.lich-bo-cuc { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; margin-top: 16px; align-items: start; }
+.lich-luoi { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.lich-thu { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); padding: 2px 0 4px; }
+.lich-o { min-height: 74px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; cursor: pointer; font-size: 12px; line-height: 1.25; text-align: left; overflow: hidden; }
+.lich-o:hover { border-color: var(--primary); }
+.lich-o:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.lich-o .so { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.lich-o .thu, .lich-o .chi { font-weight: 600; white-space: nowrap; }
+.lich-o.tuong-lai { opacity: .55; }
+.lich-o.hom-nay .so { background: var(--primary); color: var(--on-primary); border-radius: 99px; padding: 0 7px; }
+.lich-o.chon { border: 2px solid var(--primary); padding: 5px; }
+@media (max-width: 1000px) { .lich-bo-cuc { grid-template-columns: 1fr; } }
+@media (max-width: 520px) {
+  .lich-luoi { gap: 3px; } .lich-o { min-height: 54px; padding: 4px 3px; font-size: 10px; border-radius: 8px; } .lich-o.chon { padding: 3px 2px; }
+  .lich-o .so { font-size: 12px; } .card.lich { padding: 10px 8px; }
+}
+
+/* ----- nhập giao dịch từ file ----- */
+.nhap-tom-tat { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 10px; }
+.nhap-loi { margin-bottom: 10px; font-size: 13px; } .nhap-loi summary { cursor: pointer; color: var(--bad); font-weight: 600; } .nhap-loi ul { margin: 6px 0; padding-left: 20px; max-height: 160px; overflow: auto; }
+.nhap-bang { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+.nhap-bang table { font-size: 13px; } .nhap-bang th { position: sticky; top: 0; background: var(--card); z-index: 1; } .nhap-bang th, .nhap-bang td { padding: 7px 8px; }
+
+/* ----- kế hoạch tài chính tháng ----- */
+.kh-dau { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.kh-buoc { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; }
+.kh-so { width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
+.kh-bar { display: flex; height: 18px; border-radius: 9px; overflow: hidden; background: var(--line); margin: 8px 0 6px; }
+.kh-bar i { display: block; height: 100%; }
+.kh-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
+.kh-tom { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--bg); }
+.kh-pt { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: 15px; }
+.kh-bang { overflow-x: auto; } .kh-bang input { width: 130px; text-align: right; min-height: 34px; padding: 4px 8px; }
+.kh-bang td { padding: 6px 8px; } .kh-tiet td { background: var(--primary-l); }
+.kh-cham { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+.kh-nx { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 6px; }
+.kh-nx li { padding: 8px 10px 8px 14px; border-radius: 8px; border-left: 4px solid var(--ok); background: var(--bg); font-size: 14px; }
+.kh-nx li.canh { border-left-color: var(--warn); } .kh-nx li.xau { border-left-color: var(--bad); }
+.kh-dong { padding: 8px 0; border-bottom: 1px solid var(--line); } .kh-dong:last-child { border-bottom: 0; }
+@media (max-width: 520px) { .kh-bang input { width: 100px; } }

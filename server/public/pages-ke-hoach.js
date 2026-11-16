@@ -36,6 +36,99 @@ export async function trangNganSach(root) {
   await tai();
 }
 
+// ================= Lập kế hoạch tài chính tháng (R13) =================
+// 3 bước: (1) xác nhận thu nhập (hệ thống tự điền) và chọn cách phân bổ -> (2) xem/sửa đề xuất -> (3) Áp dụng một lần.
+const tenThang = (t, n) => `${String(t).padStart(2, '0')}/${n}`;
+function thanhPhanBo(thu, chi, deDanh) {
+  const tong = Math.max(thu, chi + deDanh, 1); const con = Math.max(0, thu - chi - deDanh);
+  const phan = (v, mau, ten) => (v > 0 ? h('i', { style: `width:${(v / tong) * 100}%;background:${mau}`, title: `${ten}: ${vnd(v)}` }) : null);
+  return h('div', {}, h('div', { class: 'kh-bar', role: 'img', 'aria-label': `Chi ${vnd(chi)}, để dành ${vnd(deDanh)}, còn lại ${vnd(con)}` },
+    phan(chi, 'var(--chi)', 'Chi theo kế hoạch'), phan(deDanh, '#2563eb', 'Để dành'), phan(con, 'var(--ok)', 'Còn lại')),
+  h('div', { class: 'legend kh-legend' }, h('div', {}, h('i', { style: 'background:var(--chi)' }), 'Chi'), h('div', {}, h('i', { style: 'background:#2563eb' }), 'Để dành'), h('div', {}, h('i', { style: 'background:var(--ok)' }), 'Còn lại')));
+}
+
+export async function trangKeHoach(root) {
+  let thang = thangNay();
+  const vung = h('div');
+  root.append(h('div', { class: 'toolbar' }, truong('Tháng', h('input', { type: 'month', value: thang, onchange: (e) => { thang = e.target.value || thangNay(); tai(); } }))), vung);
+
+  async function tai(lapLai = false) {
+    const [t, n] = tachThang(thang);
+    const d = await chay(() => api('GET', `/ke-hoach?${qs({ thang: t, nam: n })}`)); if (!d) return;
+    if (!d.coKeHoach || lapLai) return lap(t, n);
+    theoDoi(d);
+  }
+
+  function theoDoi(d) {
+    const the = (nhan, giaTri, phu, cls = '') => h('div', { class: 'card stat' }, h('div', { class: 'label' }, nhan), h('div', { class: `val ${cls}` }, giaTri), h('div', { class: 'delta muted' }, phu));
+    const tienDoChi = d.tongChiKeHoach ? Math.round((d.chiThucTe / d.tongChiKeHoach) * 100) : 0;
+    bo(vung).append(
+      h('div', { class: 'card kh-dau' }, h('div', {}, h('h2', { style: 'margin:0' }, `Kế hoạch tháng ${tenThang(d.thang, d.nam)}`),
+        h('div', { class: 'small muted' }, `${d.phuongPhap === '50-30-20' ? 'Quy tắc 50/30/20' : 'Theo thói quen chi tiêu 3 tháng'} · đã qua ${d.ngayDaQua}/${d.soNgayTrongThang} ngày`)),
+      h('div', { class: 'sp' }), h('button', { class: 'btn', onclick: () => tai(true) }, 'Điều chỉnh kế hoạch')),
+      h('div', { class: 'grid g4' },
+        the('Thu nhập', vnd(d.thuThucTe), `Dự kiến ${vnd(d.thuNhapDuKien)}`, 'thu'),
+        the('Đã chi / kế hoạch', `${vnd(d.chiThucTe)}`, `Kế hoạch ${vnd(d.tongChiKeHoach)} · ${tienDoChi}%`, 'chi'),
+        the('Đã để dành', vnd(d.tietKiemThucTe), `Kế hoạch ${vnd(d.tietKiemDuKien)}`),
+        the('Dự báo cuối tháng', vnd(d.duBaoConLai), `Dự báo chi cả tháng ${vnd(d.duBaoChi)}`, d.duBaoConLai >= 0 ? 'thu' : 'chi')),
+      h('div', { class: 'grid g2' },
+        h('div', { class: 'card' }, h('h2', {}, 'Nhận xét'),
+          d.nhanXet.length ? h('ul', { class: 'kh-nx' }, d.nhanXet.map((x) => h('li', { class: x.muc }, x.noiDung))) : h('div', { class: 'empty' }, 'Chưa có giao dịch trong tháng'),
+          h('h3', { style: 'margin-top:14px' }, 'Phân bổ thu nhập theo kế hoạch'), thanhPhanBo(d.thuNhapDuKien, d.tongChiKeHoach, d.tietKiemDuKien),
+          h('p', { class: 'small muted' }, d.conLaiKeHoach >= 0 ? `Dư theo kế hoạch: ${vnd(d.conLaiKeHoach)}` : h('span', { class: 'bad' }, `Kế hoạch thâm hụt ${vnd(-d.conLaiKeHoach)}`))),
+        h('div', { class: 'card' }, h('h2', {}, 'Kế hoạch so với thực tế'),
+          d.nganSach.length ? d.nganSach.map((x) => h('div', { class: 'kh-dong' },
+            h('div', { class: 'row', style: 'border:0;padding:0 0 4px' }, h('b', { class: 'info' }, x.tenDanhMuc),
+              h('span', { class: `pill ${x.tienDo > 100 ? 'bad' : x.tienDo >= x.nguongCanhBao ? 'warn' : 'ok'}` }, `${x.tienDo}%`)),
+            thanhTienDo(x.tienDo, x.nguongCanhBao), h('div', { class: 'small muted' }, `Đã chi ${vnd(x.soDaChi)} / ${vnd(x.hanMuc)}`)))
+            : h('div', { class: 'empty' }, 'Kế hoạch chưa phân bổ cho danh mục nào'))));
+  }
+
+  async function lap(t, n, phuongPhap = null, thuNhap = null) {
+    const g = await chay(() => api('GET', `/ke-hoach/goi-y?${qs({ thang: t, nam: n, phuongPhap: phuongPhap ?? '', thuNhap: thuNhap ?? '' })}`)); if (!g) return;
+    const oThu = h('input', { type: 'number', min: 1, value: g.thuNhapDuKien || '', 'aria-label': 'Thu nhập dự kiến' });
+    const oTiet = h('input', { type: 'number', min: 0, value: g.tietKiem, 'aria-label': 'Tiền để dành' });
+    const oHan = g.phanBo.map((p) => h('input', { type: 'number', min: 0, step: 10000, value: p.deXuat, 'aria-label': `Hạn mức ${p.tenDanhMuc}` }));
+    const tomTat = h('div', { class: 'kh-tom' });
+    const veTomTat = () => {
+      const thu = Number(oThu.value) || 0; const tiet = Number(oTiet.value) || 0; const chi = oHan.reduce((s, o) => s + (Number(o.value) || 0), 0);
+      const con = thu - chi - tiet;
+      bo(tomTat).append(h('div', { class: 'kh-pt' }, h('span', {}, 'Thu nhập ', h('b', {}, vnd(thu))), ' − ', h('span', {}, 'Chi ', h('b', { class: 'chi' }, vnd(chi))), ' − ',
+        h('span', {}, 'Để dành ', h('b', {}, vnd(tiet))), ' = ', h('span', {}, 'Còn lại ', h('b', { class: con >= 0 ? 'thu' : 'bad' }, vnd(con)))), thanhPhanBo(thu, chi, tiet),
+      con < 0 ? h('p', { class: 'small bad', style: 'margin:6px 0 0' }, 'Kế hoạch đang thâm hụt: giảm hạn mức hoặc tiền để dành.') : '');
+    };
+    [oThu, oTiet, ...oHan].forEach((o) => o.addEventListener('input', veTomTat));
+    const pp = g.phuongPhap;
+    const nutPP = (ma, ten) => h('button', { type: 'button', class: pp === ma ? 'on' : '', onclick: () => lap(t, n, ma, Number(oThu.value) || null) }, ten);
+    bo(vung).append(
+      h('div', { class: 'card' }, h('h2', {}, `${g.daCoKeHoach ? 'Điều chỉnh' : 'Lập'} kế hoạch tháng ${tenThang(t, n)}`),
+        h('p', { class: 'small muted', style: 'margin-top:-6px' }, 'Hệ thống đã tự điền thu nhập và đề xuất hạn mức từ dữ liệu của bạn. Chỉ cần xem lại, sửa nếu muốn, rồi bấm Áp dụng.'),
+        h('div', { class: 'kh-buoc' }, h('span', { class: 'kh-so' }, '1'), h('b', {}, 'Thu nhập dự kiến và cách phân bổ')),
+        h('div', { class: 'toolbar', style: 'margin:0' }, truong('Thu nhập dự kiến (₫)', oThu),
+          h('button', { type: 'button', class: 'btn', onclick: () => lap(t, n, pp, Number(oThu.value) || null) }, 'Gợi ý lại theo thu nhập này'),
+          h('div', { class: 'seg', role: 'group', 'aria-label': 'Cách phân bổ' }, nutPP('LichSu', 'Theo thói quen 3 tháng'), nutPP('50-30-20', 'Quy tắc 50/30/20'))),
+        h('p', { class: 'small muted' }, `Nguồn: ${g.nguonThuNhap}${g.thuCoDinh.length ? ` · thu định kỳ: ${g.thuCoDinh.map((x) => `${x.tenDanhMuc} ${vnd(x.soTien)} (ngày ${x.ngayTrongThang})`).join(', ')}` : ''}`),
+        h('div', { class: 'kh-buoc' }, h('span', { class: 'kh-so' }, '2'), h('b', {}, 'Phân bổ chi và tiền để dành')),
+        g.canhBao.length ? h('ul', { class: 'kh-nx' }, g.canhBao.map((c) => h('li', { class: 'canh' }, c))) : null,
+        h('div', { class: 'kh-bang' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, 'Danh mục chi'), h('th', {}, 'Nhóm'), h('th', { class: 'r' }, 'TB 3 tháng'), h('th', { class: 'r' }, 'Cố định'), h('th', { class: 'r' }, 'Hạn mức'))),
+          h('tbody', {}, g.phanBo.map((p, i) => h('tr', {}, h('td', {}, h('i', { class: 'kh-cham', style: `background:${p.mauSac}` }), p.tenDanhMuc), h('td', { class: 'small muted' }, p.nhom),
+            h('td', { class: 'r small' }, so(p.trungBinh3Thang)), h('td', { class: 'r small' }, p.coDinh ? so(p.coDinh) : '—'), h('td', { class: 'r' }, oHan[i]))),
+          h('tr', { class: 'kh-tiet' }, h('td', {}, h('b', {}, 'Để dành')), h('td', { class: 'small muted', colspan: 3 },
+            g.mucTieu.length ? `Mục tiêu cần: ${g.mucTieu.map((m) => `${m.tenMucTieu} ${vnd(m.canMoiThang)}`).join(', ')}` : 'Chưa có mục tiêu: gợi ý để dành 10% thu nhập'), h('td', { class: 'r' }, oTiet))))),
+        g.chiCoDinh.length ? h('p', { class: 'small muted' }, `Khoản chi cố định (định kỳ) đã tính sẵn: ${g.chiCoDinh.map((x) => `${x.tenDanhMuc} ${vnd(x.soTien)}`).join(', ')}`) : null,
+        h('div', { class: 'kh-buoc' }, h('span', { class: 'kh-so' }, '3'), h('b', {}, 'Kiểm tra cân đối và áp dụng')),
+        tomTat,
+        h('div', { class: 'actions' }, g.daCoKeHoach ? h('button', { class: 'btn', onclick: () => tai() }, 'Hủy') : null,
+          h('button', { class: 'btn primary', onclick: async () => {
+            const phanBo = g.phanBo.map((p, i) => ({ maDanhMuc: p.maDanhMuc, hanMuc: Math.round(Number(oHan[i].value) || 0) })).filter((p) => p.hanMuc > 0 || g.phanBo.find((x) => x.maDanhMuc === p.maDanhMuc).hienTai > 0);
+            const r = await chay(() => api('POST', '/ke-hoach', { thang: t, nam: n, thuNhapDuKien: Math.round(Number(oThu.value)), tietKiemDuKien: Math.round(Number(oTiet.value) || 0), phuongPhap: pp, phanBo }));
+            if (r) { thongBao(`Đã áp dụng kế hoạch: ${phanBo.filter((p) => p.hanMuc > 0).length} ngân sách tháng ${tenThang(t, n)}`); theoDoi(r); }
+          } }, 'Áp dụng kế hoạch'))));
+    veTomTat();
+  }
+  await tai();
+}
+
 // ================= Mục tiêu tiết kiệm (UC 3.8) =================
 export async function trangMucTieu(root) {
   const luoi = h('div', { class: 'grid g3' });
