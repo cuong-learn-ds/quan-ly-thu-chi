@@ -1,4 +1,4 @@
-import { api, qs, h, bo, vnd, so, ngayVN, gioVN, homNay, thangNay, tachThang, thongBao, hopThoai, xacNhan, truong, truongMatKhau, truongAn, chon, chay, ic, nut, nutIcon, tien, tile, tileIcon, chip, rong, dangTai, hienLoi, datHanhDong, datPhuDe, phanDoan, chonThang, congTac, CHE_DO, trangThaiNS, kpi, dai, kpiPhu, rutGon } from './core.js';
+import { api, qs, h, bo, vnd, so, ngayVN, gioVN, homNay, thangNay, tachThang, thongBao, hopThoai, xacNhan, truong, truongMatKhau, truongAn, chon, chay, ic, nut, nutIcon, tien, tile, tileIcon, chip, rong, dangTai, hienLoi, datHanhDong, datPhuDe, phanDoan, chonThang, congTac, CHE_DO, trangThaiNS, kpi, dai, kpiPhu, rutGon, demSo, nenChay, baoSuKien, layDuoc } from './core.js';
 import { heo, hu, bieuDoThuChi, chuGiai, thanhXep, giayNho, dauMoc, markTien, mauTrangThai, hoaDon, bangDinh } from './ve.js';
 import { chonNgay } from './lich.js';
 
@@ -51,13 +51,15 @@ export async function trangNganSach(root) {
     // Kệ hũ
     const dsNguong = [...new Set(ds.map((x) => x.nguongCanhBao))];
     const chuThich = dsNguong.length === 1 ? `Vạch đứt trong hũ là ngưỡng cảnh báo ${dsNguong[0]}%. Hũ tràn nắp là đã vượt hạn mức.` : 'Vạch đứt trong hũ là ngưỡng cảnh báo của từng hũ. Hũ tràn nắp là đã vượt hạn mức.';
+    const dongNS = nenChay('ngan-sach'); // nước dâng, nắp bật, dấu mộc đóng: lần đầu hiện trang (lọc/tải lại ngầm không chạy lại)
     const theHu = (x, i) => {
       const m = mauTrangThai(x.tienDo, x.nguongCanhBao); const pc = Math.round(x.tienDo);
+      const tre = x.tienDo > 100 ? 1500 : 1150; // dấu mộc đóng sau khi nước (hoặc nước tràn) xong
       const conLai = x.hanMuc - x.soDaChi;
       const tt = x.tienDo > 100 ? `Tràn ra ${vnd(-conLai)}` : x.tienDo === 100 ? 'Vừa chạm hạn mức' : x.tienDo >= x.nguongCanhBao ? `Còn ${vnd(conLai)}, qua vạch cảnh báo` : `Còn ${vnd(conLai)}`;
-      return h('article', { class: 'hu-the', style: `border-radius:var(${i % 2 ? '--ra' : '--rb'})`, 'aria-labelledby': `hu-${x.maNganSach}` },
-        dauMoc(m.moc, m.loai, [8, -6, 5, -4][i % 4], 'goc'),
-        hu({ day: x.tienDo / 100, canhBao: x.nguongCanhBao / 100, mau: m.to, kich: 150, nhan: `Hũ ${x.tenDanhMuc} đã dùng ${pc}%, vạch cảnh báo ${x.nguongCanhBao}%` }),
+      return h('article', { class: `hu-the${dongNS ? ' an-rung' : ''}`, style: `border-radius:var(${i % 2 ? '--ra' : '--rb'})${dongNS ? `;--tre:${tre}ms` : ''}`, 'aria-labelledby': `hu-${x.maNganSach}` },
+        dauMoc(m.moc, m.loai, [8, -6, 5, -4][i % 4], 'goc', dongNS ? tre : undefined),
+        hu({ day: x.tienDo / 100, canhBao: x.nguongCanhBao / 100, mau: m.to, kich: 150, chay: dongNS, nhan: `Hũ ${x.tenDanhMuc} đã dùng ${pc}%, vạch cảnh báo ${x.nguongCanhBao}%` }),
         h('h2', { id: `hu-${x.maNganSach}` }, tile(bt[x.maDanhMuc], 'sm', x.mauSac), x.tenDanhMuc),
         h('p', { class: 'hu-so num' }, h('b', {}, so(x.soDaChi)), ` / ${vnd(x.hanMuc)}`), h('p', { class: `hu-tt ${m.loai}` }, tt),
         nutIcon('pencil', `Sửa hũ ${x.tenDanhMuc}`, { onclick: () => bieuMau(x) }));
@@ -120,15 +122,18 @@ export async function trangMucTieu(root) {
     const ds = await chay(() => api('GET', '/muc-tieu')); if (!ds) { hienLoi(luoi, tai); return; }
     datPhuDe(`Đã để dành tổng cộng ${vnd(ds.reduce((s, m) => s + m.soTienHienTai, 0))}`);
     bo(luoi);
+    const lanDau = ds.length > 0 && nenChay('muc-tieu'); // heo dâng nước lần đầu hiện trang
     const them = h('button', { type: 'button', class: 'gc-them', onclick: () => bieuMau(null) }, h('span', { class: 'gt-heo' }, heo({ day: 0, kich: 120, xu: false })), h('span', { class: 'gt-t' }, h('span', {}, 'Nuôi thêm một con heo'), h('span', {}, 'Đặt tên, số tiền cần và ngày muốn đạt. Ví dụ: quỹ dự phòng.')));
     luoi.append(...ds.map((m, i) => {
       const xong = m.daHoanThanh; const p = Math.max(0, Math.min(100, Math.round(m.tienDo))); const thieu = Math.max(0, m.soTienMucTieu - m.soTienHienTai);
       const dau = xong ? ['XONG RỒI!', 'ok'] : m.chamTienDo ? ['CHẬM NHỊP', 'warn'] : ['ĐÚNG NHỊP', 'ok'];
       const chipTien = [...new Set([100000, 500000, 1000000].map((v) => Math.min(v, Math.round(thieu))))].filter((v) => v > 0);
       const o = (nhan, giaTri) => h('div', {}, h('dt', {}, nhan), ...giaTri);
-      return h('article', { class: 'card gcard', style: `border-radius:var(${i % 2 ? '--rb' : '--ra'})`, 'aria-labelledby': `mt-${m.maMucTieu}` },
-        dauMoc(dau[0], dau[1], i % 2 ? -5 : 6, 'goc'),
-        h('div', { class: 'gc-heo' }, heo({ day: Math.min(1, m.tienDo / 100), kich: 210, xu: false })),
+      // Vừa bỏ ống xong: xu rơi, heo nhún, nước dâng từ mức cũ; mới vào trang: nước dâng từ đáy. Dấu mộc đóng sau cùng, thẻ rung nhẹ.
+      const cu = layDuoc(`nap:${m.maMucTieu}`); const roi = cu !== undefined; const hoat = roi || lanDau; const tre = roi ? 1100 : 650;
+      return h('article', { class: `card gcard${hoat ? ' an-rung' : ''}`, style: `border-radius:var(${i % 2 ? '--rb' : '--ra'})${hoat ? `;--tre:${tre}ms` : ''}`, 'aria-labelledby': `mt-${m.maMucTieu}` },
+        dauMoc(dau[0], dau[1], i % 2 ? -5 : 6, 'goc', hoat ? tre : undefined),
+        h('div', { class: 'gc-heo' }, heo({ day: Math.min(1, m.tienDo / 100), kich: 210, xu: false, chay: hoat ? { tu: roi ? cu : 0, roi } : undefined })),
         h('div', { class: 'gc-main' },
           h('div', { class: 'gc-hd' }, h('h2', { id: `mt-${m.maMucTieu}` }, m.tenMucTieu), h('p', {}, xong ? `Hạn ${ngayVN(m.hanChot)} · đã đạt` : `Hạn ${ngayVN(m.hanChot)} · còn ${soThang(m)} tháng`)),
           h('div', { class: `duong${m.chamTienDo && m.tienDo < 50 && !xong ? ' cham' : ''}`, style: `--p:${p}`, role: 'progressbar', 'aria-valuenow': p, 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-label': `Tiến độ mục tiêu ${m.tenMucTieu}` },
@@ -159,7 +164,7 @@ export async function trangMucTieu(root) {
     const sel = chon(vis.map((v) => [v.maVi, `${v.tenVi} (${vnd(v.soDu)})`]), vis[0]?.maVi); const st = h('input', { type: 'number', min: 1, required: true, value: soTien ?? (Math.round(m.soTienCanMoiThang) || ''), inputmode: 'numeric' });
     const dlg = hopThoai(`Nạp tiền vào "${m.tenMucTieu}"`, h('form', { class: 'form', onsubmit: (e) => { e.preventDefault(); khoaNut(e.target, async () => {
       const r = await chay(() => api('POST', `/muc-tieu/${m.maMucTieu}/nap-tien`, { maVi: +sel.value, soTien: Number(st.value) }), dlg);
-      if (r) { dlg.dong(); vuaNap.set(m.maMucTieu, `Đã bỏ ống ${vnd(Number(st.value))}.`); thongBao(r.daHoanThanh ? 'Chúc mừng, bạn đã hoàn thành mục tiêu' : 'Đã nạp tiền vào mục tiêu'); tai(); }
+      if (r) { dlg.dong(); baoSuKien(`nap:${m.maMucTieu}`, Math.max(0, Math.min(1, m.tienDo / 100))); vuaNap.set(m.maMucTieu, `Đã bỏ ống ${vnd(Number(st.value))}.`); thongBao(r.daHoanThanh ? 'Chúc mừng, bạn đã hoàn thành mục tiêu' : 'Đã nạp tiền vào mục tiêu'); tai(); }
     }); } }, truong('Ví nguồn', sel), truong('Số tiền nạp (₫)', st), acts(() => dlg.dong(), 'Nạp tiền')));
   }
   await tai();
@@ -202,6 +207,8 @@ export async function trangBaoCao(root) {
       chay(() => api('GET', `/bao-cao/theo-danh-muc?${qs({ tu: ngayDau(prev), den: new Date(Date.parse(ngayDau(cur)) - 86400000).toISOString().slice(0, 10), loai: 'Chi' })}`)),
       chay(() => api('GET', '/bao-cao/thang'))]);
     if (!chuoi || !cat) { hienLoi(vung, tai); return; }
+    const dong = nenChay('bao-cao'); // số trên phiếu đếm lên, cột mọc lần lượt: chỉ lần đầu hiện trang
+    const dem = (b, v, dang) => (dong ? demSo(b, v, dang) : b);
     const map = Object.fromEntries(chuoi.map(([n, r]) => [n, r]));
     const hang = ve.map((x) => ({ ...x, thu: map[x.nam]?.[x.thang - 1]?.thu ?? 0, chi: map[x.nam]?.[x.thang - 1]?.chi ?? 0 }));
     const kyHang = hang.slice(-soKy);
@@ -219,8 +226,8 @@ export async function trangBaoCao(root) {
     const nhanPhieu = soKy === 1 ? `Tháng này · T${trongKy[0].thang}/${trongKy[0].nam}` : `${nhanKy} · ${trongKy[0].nam === trongKy.at(-1).nam ? `T${trongKy[0].thang} đến T${trongKy.at(-1).thang}/${trongKy.at(-1).nam}` : `T${trongKy[0].thang}/${trongKy[0].nam} đến T${trongKy.at(-1).thang}/${trongKy.at(-1).nam}`}`;
     const phieu = hoaDon(h('div', { class: 'pt' },
       h('h2', { id: 'h-phieu' }, 'PHIẾU TỔNG KẾT'), h('p', { class: 'pt-ky' }, nhanKy === 'Tháng này' ? nhanPhieu : nhanPhieu),
-      h('div', { class: 'pt-khoi' }, h('p', {}, h('span', {}, 'Tổng thu'), h('b', { class: 'income num' }, `+${vnd(T)}`)), h('p', {}, h('span', {}, 'Tổng chi'), h('b', { class: 'expense num' }, `−${vnd(C)}`))),
-      h('div', { class: 'pt-khoi' }, h('p', { class: 'to' }, h('span', {}, 'Giữ lại'), h('b', { class: 'num' }, `${T - C > 0 ? '+' : ''}${vnd(T - C)}`)), h('p', { class: 'phu' }, h('span', {}, 'Trung bình mỗi tháng'), h('b', { class: 'num' }, vnd(Math.round((T - C) / soKy))))),
+      h('div', { class: 'pt-khoi' }, h('p', {}, h('span', {}, 'Tổng thu'), dem(h('b', { class: 'income num' }, `+${vnd(T)}`), T, (v) => `+${vnd(v)}`)), h('p', {}, h('span', {}, 'Tổng chi'), dem(h('b', { class: 'expense num' }, `−${vnd(C)}`), C, (v) => `−${vnd(v)}`))),
+      h('div', { class: 'pt-khoi' }, h('p', { class: 'to' }, h('span', {}, 'Giữ lại'), dem(h('b', { class: 'num' }, `${T - C > 0 ? '+' : ''}${vnd(T - C)}`), T - C, (v) => `${v > 0 ? '+' : ''}${vnd(v)}`)), h('p', { class: 'phu' }, h('span', {}, 'Trung bình mỗi tháng'), dem(h('b', { class: 'num' }, vnd(Math.round((T - C) / soKy))), Math.round((T - C) / soKy)))),
       h('div', { class: 'pt-moc' }, h('span', { class: `dau-tron ${phanTramGiu === null || phanTramGiu >= 0 ? 'ok' : 'bad'}` }, h('b', {}, phanTramGiu === null ? '—' : `${phanTramGiu}%`), h('span', {}, phanTramGiu !== null && phanTramGiu < 0 ? 'CHI QUÁ' : 'GIỮ LẠI')), h('span', { class: 'pt-chu' }, `trên tổng thu của ${soKy} tháng`))), { xoay: -0.8, lop: 'phieu-tk' });
     phieu.setAttribute('aria-labelledby', 'h-phieu');
     // Bảng từng tháng, gộp các tháng trống liền nhau
@@ -238,7 +245,7 @@ export async function trangBaoCao(root) {
       }
     }
     bo(vung).append(
-      h('div', { class: 'row2 bc-1' }, h('div', { class: 'fixed phieu-w' }, phieu), h('section', { class: 'card b grow', 'aria-labelledby': 'h-bd' }, h('div', { class: 'card-h' }, h('h2', { id: 'h-bd' }, `Thu chi ${soVe} tháng`)), bieuDoThuChi(hang))),
+      h('div', { class: 'row2 bc-1' }, h('div', { class: 'fixed phieu-w' }, phieu), h('section', { class: 'card b grow', 'aria-labelledby': 'h-bd' }, h('div', { class: 'card-h' }, h('h2', { id: 'h-bd' }, `Thu chi ${soVe} tháng`)), bieuDoThuChi(hang, { chay: dong }))),
       h('div', { class: 'row2' },
         h('section', { class: 'card fixed bc-dm', 'aria-labelledby': 'h-dm' }, h('div', { class: 'card-h' }, h('h2', { id: 'h-dm' }, 'Chi theo danh mục'), cat.length ? h('b', { class: 'num' }, vnd(tongCat)) : null), h('p', { class: 'pk-ky' }, nhanKy),
           cat.length ? [thanhXep(cat, { tong: tongCat, tieuDe: `Chi theo danh mục ${nhanKy.toLowerCase()}` }), chuGiai(cat, { tong: tongCat, toiDa: 6 })] : rong('inbox', 'Không có khoản chi trong khoảng này')),

@@ -83,12 +83,45 @@ export function nhanNgay(iso) {
   return ngayVN(iso);
 }
 
+// ---- chuyển động: chỉ chạy khi có việc vừa xảy ra hoặc lần đầu hiện trang; máy bật "giảm chuyển động" thì bỏ hết
+const mqGiam = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+export const giamChuyenDong = () => !!mqGiam?.matches;
+const daChay = new Set(); const suKien = new Map();
+/** Gọi mỗi lần vào một trang: cho phép các chuyển động "lần đầu hiện" chạy lại, bỏ sự kiện cũ. */
+export function luotMoi() { daChay.clear(); suKien.clear(); }
+/** true đúng một lần cho mỗi khoá trong một lượt vào trang (dữ liệu tải lại ngầm không chạy lại). */
+export function nenChay(khoa) { if (giamChuyenDong() || daChay.has(khoa)) return false; daChay.add(khoa); return true; }
+/** Ghi nhớ việc vừa xảy ra (vd nạp tiền xong); lần vẽ kế tiếp lấy ra bằng layDuoc rồi thôi. */
+export const baoSuKien = (khoa, giaTri = true) => { suKien.set(khoa, giaTri); };
+export function layDuoc(khoa) { const v = suKien.get(khoa); suKien.delete(khoa); return giamChuyenDong() ? undefined : v; }
+/** Đếm số từ 0 lên dich trong 1,3 giây (chậm dần). Đọc màn hình chỉ nghe giá trị cuối; xong thì thay bằng chữ thường. */
+export function demSo(el, dich, dang = vnd, ms = 1300) {
+  if (!dich || giamChuyenDong() || typeof requestAnimationFrame !== 'function') return el;
+  const cuoi = dang(dich); const buoc = Math.abs(dich) >= 1e5 ? 1000 : Math.abs(dich) >= 1e4 ? 100 : 1;
+  const hien = h('span', { class: 'dem-a' }, dang(0));
+  // Bản vô hình giữ chỗ bằng đúng độ rộng số cuối nên câu không bị xô lệch khi đếm
+  el.replaceChildren(h('span', { class: 'dem-w', 'aria-hidden': 'true' }, hien, h('span', { class: 'dem-k' }, cuoi)), h('span', { class: 'sr' }, cuoi));
+  const t0 = performance.now();
+  const khung = (t) => {
+    if (!el.isConnected) return;
+    const p = Math.min(1, (t - t0) / ms);
+    if (p >= 1) { el.textContent = cuoi; return; }
+    hien.textContent = dang(Math.round((dich * (1 - (1 - p) ** 3)) / buoc) * buoc);
+    requestAnimationFrame(khung);
+  };
+  requestAnimationFrame(khung);
+  return el;
+}
+
 // ---- thông báo nhanh
 let toastTimer;
 export function thongBao(msg, loi = false) {
   const t = document.getElementById('toast');
-  t.replaceChildren(ic(loi ? 'circle-alert' : 'circle-check'), h('span', {}, msg));
-  t.className = `toast show${loi ? ' bad' : ''}`;
+  // Dấu tích tự vẽ (báo thành công); báo lỗi chỉ trượt lên, không lắc
+  const bieu = loi ? ic('circle-alert') : h('span', { class: 'tk', 'aria-hidden': 'true' }, h('svg:svg', { class: 'ic', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('svg:path', { class: 'an-tick', d: 'M20 6 9 17l-5-5' })));
+  t.replaceChildren(bieu, h('span', {}, msg));
+  t.className = 'toast'; void t.offsetWidth; // đặt lại để chuyển động chạy từ đầu khi báo liên tiếp
+  t.className = `toast show${loi ? ' bad' : ' ok'}`;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.className = 'toast'; }, loi ? 5000 : 3400);
 }
 

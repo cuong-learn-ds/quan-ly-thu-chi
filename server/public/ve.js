@@ -23,7 +23,8 @@ export function mauTrangThai(td, nguong = 80, { conLai = false } = {}) {
 export const bangDinh = (mau = 'y', { trai = '', xoay = -3, nho = false } = {}) => h('span', { class: `bang ${mau}${nho ? ' nho' : ''}`, 'aria-hidden': 'true', style: `${trai ? `left:${trai};` : ''}--rot:${xoay}deg` });
 
 /** Dấu mộc viền màu, hơi nghiêng. loai: bad | warn | ok. */
-export const dauMoc = (nhan, loai = 'bad', xoay = -4, lop = '') => h('span', { class: `moc ${loai} ${lop}`.trim(), style: `--rot:${xoay}deg` }, nhan);
+/** tre (ms) có thì dấu mộc đóng xuống sau khoảng đó (chuyển động), không có thì hiện sẵn. */
+export const dauMoc = (nhan, loai = 'bad', xoay = -4, lop = '', tre) => h('span', { class: `moc ${loai} ${lop}${tre != null ? ' an-moc' : ''}`.trim(), style: `--rot:${xoay}deg${tre != null ? `;--tre:${tre}ms` : ''}` }, nhan);
 
 /** Số tiền đánh dấu bằng bút dạ. loai: thu | chi | giu. */
 export const markTien = (n, loai = 'giu') => h('mark', { class: `m-${loai}` }, typeof n === 'number' ? vnd(n) : n);
@@ -32,23 +33,26 @@ export const markTien = (n, loai = 'giu') => h('mark', { class: `m-${loai}` }, t
 const BO_GOC = ['3px 6px 4px 12px', '6px 3px 12px 4px', '4px 10px 3px 6px', '10px 4px 6px 3px', '3px 8px 5px 11px'];
 const XOAY_GN = [-1.2, 0.9, -0.5, 1.1, -0.9];
 const BANG_GN = [['b', 3], ['y', -3], ['p', 2], ['b', -2], ['y', 4]];
-export function giayNho(noiDung, { mau = 'y', icon = 'lightbulb', i = 0, xoay, bang, loaiIcon = '' } = {}) {
+export function giayNho(noiDung, { mau = 'y', icon = 'lightbulb', i = 0, xoay, bang, loaiIcon = '', bay = false } = {}) {
   const [bm, bx] = BANG_GN[i % BANG_GN.length];
-  return h('li', { class: `giay-nho gn-${mau}`, style: `--rot:${xoay ?? XOAY_GN[i % XOAY_GN.length]}deg;border-radius:${BO_GOC[i % BO_GOC.length]}` },
+  // bay: giấy bay vào lần lượt (cách nhau 120ms), băng dính dán sau cùng
+  return h('li', { class: `giay-nho gn-${mau}${bay ? ' an-giay' : ''}`, style: `--rot:${xoay ?? XOAY_GN[i % XOAY_GN.length]}deg;border-radius:${BO_GOC[i % BO_GOC.length]}${bay ? `;--tre:${i * 120}ms` : ''}` },
     bangDinh(bang ?? bm, { xoay: bx, nho: true }), h('span', { class: `gn-ic ${loaiIcon}`.trim() }, ic(icon, 'nhoe-nho')), h('p', {}, noiDung));
 }
 
 /** Gạch chân vàng dưới tiêu đề trang (ba kiểu nét, chọn theo tên trang). */
 const NET_GACH = ['M3 9 C 40 3, 80 12, 120 6 S 180 4, 197 8', 'M3 8 C 50 12, 90 3, 130 7 S 182 10, 197 6', 'M3 7 C 44 11, 96 3, 140 8 S 186 6, 197 9'];
-export const gachChan = (ten = '') => S('svg', { class: 'gach', 'aria-hidden': 'true', viewBox: '0 0 200 14', preserveAspectRatio: 'none' }, S('path', { d: NET_GACH[[...ten].reduce((a, c) => a + c.charCodeAt(0), 0) % NET_GACH.length], fill: 'none', 'stroke-width': 8, 'stroke-linecap': 'round' }));
+export const gachChan = (ten = '') => S('svg', { class: 'gach', 'aria-hidden': 'true', viewBox: '0 0 200 14', preserveAspectRatio: 'none' }, S('path', { d: NET_GACH[[...ten].reduce((a, c) => a + c.charCodeAt(0), 0) % NET_GACH.length], pathLength: 240, fill: 'none', 'stroke-width': 8, 'stroke-linecap': 'round' }));
 
 // ---- heo đất
-/** Heo đất đầy theo day (0..1). xu: đồng xu rơi vào. nhan: có thì là hình có tên; không có thì chỉ trang trí. */
-export function heo({ day = 0, kich = 220, xu = true, nhan } = {}) {
+/** Heo đất đầy theo day (0..1). xu: đồng xu vẽ sẵn trên đầu. nhan: có thì là hình có tên; không có thì chỉ trang trí.
+ *  chay = { tu, roi }: nước dâng từ mức tu lên day; roi = đồng xu rơi vào khe, heo nhún rồi nước mới dâng. */
+export function heo({ day = 0, kich = 220, xu = true, nhan, chay } = {}) {
   const f = kep(day, 0, 1); const id = `heo-than-${++dem}`; const fy = 142 - f * 100;
+  const ha = chay ? Math.max(0, f - kep(chay.tu ?? 0, 0, 1)) * 100 : 0; const roi = !!chay?.roi;
   let song = `M20 ${fy.toFixed(1)}`; for (let x = 20; x < 180; x += 20) song += ' q5 -4 10 0 t10 0';
   const a11y = nhan ? { role: 'img', 'aria-label': nhan } : { 'aria-hidden': 'true' };
-  const hinh = S('svg', { class: 'heo', viewBox: '0 0 200 170', width: '100%', ...a11y },
+  const hinh = S('svg', { class: `heo${chay ? ' chay' : ''}${roi ? ' roi' : ''}`, viewBox: '0 0 200 170', width: '100%', ...(chay ? { style: `--ha:${ha.toFixed(1)}px` } : {}), ...a11y },
     S('defs', {}, S('clipPath', { id }, S('ellipse', { cx: 96, cy: 92, rx: 64, ry: 48 }))),
     S('g', { class: 'nhoe-heo heo-net' },
       S('path', { d: 'M33 86 c-12 -6 -18 6 -10 11 c7 4 11 -7 2 -10 c-6 -2 -11 1 -13 6', fill: 'none' }),
@@ -67,7 +71,7 @@ export function heo({ day = 0, kich = 220, xu = true, nhan } = {}) {
     S('ellipse', { class: 'heo-mat', cx: 163, cy: 92, rx: 2.8, ry: 4.4 }), S('ellipse', { class: 'heo-mat', cx: 174, cy: 92, rx: 2.8, ry: 4.4 }),
     S('circle', { class: 'heo-mat', cx: 138, cy: 76, r: 5 }), S('circle', { class: 'heo-sang', cx: 139.8, cy: 74.2, r: 1.6 }),
     S('ellipse', { class: 'heo-ma', cx: 140, cy: 98, rx: 9, ry: 5 }),
-    xu ? S('g', { class: 'nhoe-heo heo-net', 'stroke-width': 3 }, S('circle', { class: 'heo-xu', cx: 94, cy: 14, r: 13 }), S('path', { d: 'M94 7 v14', 'stroke-width': 2.4 }), S('path', { d: 'M72 6 l-8 -4', fill: 'none', 'stroke-width': 2.4 }), S('path', { d: 'M118 6 l8 -4', fill: 'none', 'stroke-width': 2.4 })) : null);
+    xu || roi ? S('g', { class: `nhoe-heo heo-net${roi ? ' heo-roi' : ''}`, 'stroke-width': 3 }, S('circle', { class: 'heo-xu', cx: 94, cy: 14, r: 13 }), S('path', { d: 'M94 7 v14', 'stroke-width': 2.4 }), S('path', { d: 'M72 6 l-8 -4', fill: 'none', 'stroke-width': 2.4 }), S('path', { d: 'M118 6 l8 -4', fill: 'none', 'stroke-width': 2.4 })) : null);
   return h('div', { class: 'heo-w', style: `width:${kich}px` }, hinh);
 }
 
@@ -83,21 +87,22 @@ export function heoMini() {
 }
 
 // ---- hũ ngân sách
-/** Hũ đầy theo day (>1 = tràn, nắp bật ra). canhBao: 0..1, vạch đứt. mau: tên biến CSS của màu tô, ví dụ '--tomato-f'. */
-export function hu({ day = 0, canhBao = 0.8, mau = '--peach-f', kich = 150, nhan } = {}) {
+/** Hũ đầy theo day (>1 = tràn, nắp bật ra). canhBao: 0..1, vạch đứt. mau: tên biến CSS của màu tô, ví dụ '--tomato-f'.
+ *  chay: nước dâng từ đáy lên mức dùng; hũ tràn thì nắp bật rồi nước tràn ra sau khi nước đầy. */
+export function hu({ day = 0, canhBao = 0.8, mau = '--peach-f', kich = 150, nhan, chay = false } = {}) {
   const f = Math.max(0, Number.isFinite(day) ? day : 0); const w = kep(canhBao, 0, 1); const id = `hu-than-${++dem}`;
   const fy = 168 - Math.min(f, 1) * 128; const wy = 168 - w * 128; const tran = f > 1;
   let song = `M24 ${fy.toFixed(1)}`; for (let x = 24; x < 116; x += 16) song += ' q4 -3 8 0 t8 0';
   const THAN = 'M30 46 Q30 38 38 38 H102 Q110 38 110 46 V150 Q110 168 92 168 H48 Q30 168 30 150 Z';
   const tint = { style: `fill:var(${mau})` };
   const a11y = nhan ? { role: 'img', 'aria-label': nhan } : { 'aria-hidden': 'true' };
-  const nap = (xoay) => S('g', { class: 'nhoe-hu hu-net', 'stroke-width': 3, 'stroke-linejoin': 'round', ...(xoay ? { transform: 'rotate(-18 30 26) translate(-6 -12)' } : {}) },
+  const nap = (xoay) => S('g', { class: `nhoe-hu hu-net${xoay ? ' hu-nap-bat' : ''}`, 'stroke-width': 3, 'stroke-linejoin': 'round' },
     S('rect', { class: 'hu-nap', x: 26, y: 12, width: 88, height: 16, rx: 6 }), S('rect', { class: 'hu-nap', x: 60, y: 4, width: 20, height: 10, rx: 4 }));
-  return h('div', { class: 'hu-w', style: `width:${kich}px` }, S('svg', { class: 'hu', viewBox: '0 0 140 180', width: '100%', ...a11y },
+  return h('div', { class: 'hu-w', style: `width:${kich}px` }, S('svg', { class: `hu${chay ? ' chay' : ''}`, viewBox: '0 0 140 180', width: '100%', ...(chay ? { style: `--ha:${(Math.min(f, 1) * 128).toFixed(1)}px` } : {}), ...a11y },
     S('defs', {}, S('clipPath', { id }, S('path', { d: THAN }))),
     S('path', { class: 'hu-than', d: THAN }),
-    S('g', { 'clip-path': `url(#${id})` }, S('rect', { x: 20, y: fy.toFixed(1), width: 100, height: 200, ...tint }), S('path', { class: 'hu-song', d: song, fill: 'none', 'stroke-width': 2, 'stroke-linecap': 'round' })),
-    tran ? S('g', { class: 'nhoe-hu hu-net', 'stroke-width': 2.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' },
+    S('g', { 'clip-path': `url(#${id})` }, S('rect', { class: 'hu-nuoc', x: 20, y: fy.toFixed(1), width: 100, height: 200, ...tint }), S('path', { class: 'hu-song', d: song, fill: 'none', 'stroke-width': 2, 'stroke-linecap': 'round' })),
+    tran ? S('g', { class: 'nhoe-hu hu-net hu-tran', 'stroke-width': 2.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' },
       S('path', { d: 'M100 38 C 114 38, 119 56, 117 78 C 116 90, 106 90, 107 78 C 108 64, 106 52, 98 46 Z', ...tint }),
       S('ellipse', { cx: 118, cy: 172, rx: 18, ry: 5, ...tint }),
       S('path', { d: 'M28 44 C 18 46, 16 60, 20 70 C 22 76, 28 74, 27 67 C 26 60, 28 52, 34 48 Z', ...tint })) : null,
@@ -113,7 +118,7 @@ export function hu({ day = 0, canhBao = 0.8, mau = '--peach-f', kich = 150, nhan
 // ---- biểu đồ cột thu/chi
 const SO_TRUC = (cao) => { const mu = 10 ** Math.floor(Math.log10(cao)); const f = cao / mu; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * mu; }; // trần trục làm tròn lên số "đẹp"
 /** hang = [{nam, thang, thu, chi}] dài 1..12. Có chú giải Thu (sọc) / Chi ở dòng đầu, khoanh tháng hiện tại, chỉ cột chi cao nhất. */
-export function bieuDoThuChi(hang, { chuThich = true } = {}) {
+export function bieuDoThuChi(hang, { chuThich = true, chay = false } = {}) {
   const n = hang.length; const X0 = 40; const X1 = 592; const DAY = 220; const TOP = 40; const CAO = DAY - TOP;
   const tran = SO_TRUC(Math.max(1, ...hang.flatMap((x) => [x.thu, x.chi]))); const slot = (X1 - X0) / n; const bw = Math.min(26, slot * 0.28);
   const [namHT, thangHT] = [Number(thangNay().slice(0, 4)), Number(thangNay().slice(5, 7))];
@@ -121,15 +126,15 @@ export function bieuDoThuChi(hang, { chuThich = true } = {}) {
   const comChi = hang.filter((x) => x.chi > 0); const topChi = comChi.length >= 2 && n <= 8 ? hang.reduce((m, x, i) => (x.chi > (hang[m]?.chi ?? -1) ? i : m), 0) : -1;
   const nhan = [[tran, TOP + 5], [tran / 2, (TOP + DAY) / 2 + 5], [0, DAY + 5]];
   const goiTat = hang.map((x) => (x.thu || x.chi ? `tháng ${x.thang} thu ${vnd(x.thu)}, chi ${vnd(x.chi)}` : `tháng ${x.thang} chưa ghi`)).join('; ');
-  const ve = S('svg', { class: 'bd', role: 'img', 'aria-label': `Thu chi ${n} tháng: ${goiTat}`, viewBox: '0 0 600 270', width: '100%' },
+  const ve = S('svg', { class: `bd${chay ? ' chay' : ''}`, role: 'img', 'aria-label': `Thu chi ${n} tháng: ${goiTat}`, viewBox: '0 0 600 270', width: '100%' },
     S('g', { class: 'bd-nhan', 'font-size': 15, 'text-anchor': 'end' }, nhan.map(([v, y]) => S('text', { x: 32, y }, v ? rutGon(v) : '0'))),
     S('g', { class: 'nhoe', fill: 'none', 'stroke-linecap': 'round' },
       S('path', { class: 'bd-luoi', d: `M${X0} ${(TOP + DAY) / 2} C 200 ${(TOP + DAY) / 2 - 2}, 400 ${(TOP + DAY) / 2 + 3}, ${X1} ${(TOP + DAY) / 2}`, 'stroke-width': 2, 'stroke-dasharray': '7 7' }),
       S('path', { class: 'bd-luoi', d: `M${X0} ${TOP} C 200 ${TOP + 2}, 400 ${TOP - 2}, ${X1} ${TOP + 1}`, 'stroke-width': 2, 'stroke-dasharray': '7 7' }),
       S('path', { class: 'bd-day', d: `M${X0 - 2} ${DAY} C 200 ${DAY + 2}, 400 ${DAY - 2}, ${X1 + 2} ${DAY + 1}`, 'stroke-width': 3 })),
     S('g', { class: 'nhoe bd-cot', 'stroke-width': 2.6, 'stroke-linejoin': 'round' }, hang.map((x, i) => [
-      x.thu > 0 ? S('rect', { class: 'bd-thu', x: (cx(i) - bw - 3).toFixed(1), y: (DAY - hc(x.thu)).toFixed(1), width: bw.toFixed(1), height: hc(x.thu).toFixed(1), rx: 4 }) : null,
-      x.chi > 0 ? S('rect', { class: 'bd-chi', x: (cx(i) + 3).toFixed(1), y: (DAY - hc(x.chi)).toFixed(1), width: bw.toFixed(1), height: hc(x.chi).toFixed(1), rx: 4 }) : null])),
+      x.thu > 0 ? S('rect', { class: 'bd-thu', style: chay ? `--i:${i * 2}` : null, x: (cx(i) - bw - 3).toFixed(1), y: (DAY - hc(x.thu)).toFixed(1), width: bw.toFixed(1), height: hc(x.thu).toFixed(1), rx: 4 }) : null,
+      x.chi > 0 ? S('rect', { class: 'bd-chi', style: chay ? `--i:${i * 2 + 1}` : null, x: (cx(i) + 3).toFixed(1), y: (DAY - hc(x.chi)).toFixed(1), width: bw.toFixed(1), height: hc(x.chi).toFixed(1), rx: 4 }) : null])),
     S('g', { class: 'bd-nhan', 'font-size': 13, 'text-anchor': 'middle' }, hang.map((x, i) => (!x.thu && !x.chi ? S('text', { x: cx(i).toFixed(1), y: DAY - 10 }, 'chưa ghi') : null))),
     S('g', { class: 'bd-thang', 'font-size': 17, 'text-anchor': 'middle' }, hang.map((x, i) => S('text', { x: cx(i).toFixed(1), y: 250 }, `T${x.thang}`))),
     ...hang.map((x, i) => (x.nam === namHT && x.thang === thangHT ? S('ellipse', { class: 'nhoe bd-khoanh', cx: cx(i).toFixed(1), cy: 244, rx: 24, ry: 16, fill: 'none', 'stroke-width': 2.4 }) : null)),

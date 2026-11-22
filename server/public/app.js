@@ -1,4 +1,4 @@
-import { api, PHIEN, CHE_DO, h, bo, thongBao, truong, truongMatKhau, chay, hopThoai, ic, nut, nutIcon, datHanhDong, dangTai, homNay } from './core.js';
+import { api, PHIEN, CHE_DO, h, bo, thongBao, truong, truongMatKhau, chay, hopThoai, ic, nut, nutIcon, datHanhDong, dangTai, homNay, luotMoi } from './core.js';
 import { heo, heoMini, bangDinh, giayNho, gachChan } from './ve.js';
 
 CHE_DO.ap();
@@ -131,6 +131,7 @@ async function dinhTuyen() {
   if (!PHIEN.token) { location.hash = '#/dang-nhap'; return; }
   if (!TRANG[khoa] || !phang().some(([href]) => href === `#/${khoa}`)) { location.hash = `#/${trangMacDinh()}`; return; }
   const [ten, ham] = TRANG[khoa];
+  luotMoi(); // vào trang mới: các chuyển động "lần đầu hiện" được chạy lại
   const { noiDung } = veKhung(khoa, ten);
   document.title = `${ten} · Quản lý thu chi`;
   clearInterval(timerChuong); timerChuong = setInterval(capNhatChuong, 60000); capNhatChuong();

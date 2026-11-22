@@ -884,6 +884,71 @@ tr.trong td { text-align: center; }
   .bd-cg { font-size: 16px; }
 }
 
+/* ===== Chuyển động =====
+   Chỉ chạy khi có việc vừa xảy ra hoặc lần đầu hiện (core.js: nenChay / layDuoc); ngắn, không chặn thao tác.
+   Dùng translate/rotate/scale riêng để không đè transform gốc (nghiêng, hover); fill-mode backwards nên
+   tắt animation đi thì phần tử vẫn đúng hình cuối. Máy bật "giảm chuyển động": khối reduced-motion phía trên tắt hết. */
+/* Dấu mộc phóng to và giấy nhớ nghiêng có lúc thò ra ngoài mép: cắt ngang để trang không bị tràn/cuộn ngang (clip không tạo vùng cuộn) */
+.main { overflow-x: clip; }
+@keyframes an-gach { from { stroke-dasharray: 240; stroke-dashoffset: 252; } to { stroke-dasharray: 240; stroke-dashoffset: 0; } }
+.gach path { animation: an-gach 800ms cubic-bezier(.6, 0, .3, 1) 150ms backwards; }
+
+/* 1. Bỏ ống heo: xu rơi, heo nhún, nước dâng */
+@keyframes an-xu { 0% { transform: translateY(-80px); opacity: 1; } 55% { transform: translateY(22px); opacity: 1; } 70%, 100% { transform: translateY(26px); opacity: 0; } }
+@keyframes an-nhun { 0%, 52% { scale: 1 1; } 64% { scale: 1.07 .9; } 78% { scale: .97 1.05; } 90% { scale: 1.01 .99; } 100% { scale: 1 1; } }
+@keyframes an-nuoc { from { transform: translateY(var(--ha)); } }
+.heo.chay .heo-nuoc, .heo.chay .heo-song { animation: an-nuoc 900ms cubic-bezier(.3, 1.3, .5, 1) backwards; }
+.heo.chay.roi .heo-nuoc, .heo.chay.roi .heo-song { animation-delay: 550ms; }
+.heo.roi { transform-origin: 50% 100%; animation: an-nhun 1000ms ease-out; }
+.heo-roi { animation: an-xu 1000ms cubic-bezier(.5, 0, .7, 1) forwards; }
+
+/* 2. Hũ: nước dâng tới mức đã dùng; hũ vượt hạn mức thì nắp bật rồi nước tràn */
+@keyframes an-hu-nap { from { transform: none; } }
+@keyframes an-hu-tran { from { transform: scaleY(0); opacity: 0; } }
+.hu-nap-bat { transform-origin: 30px 26px; transform: rotate(-18deg) translate(-6px, -12px); }
+.hu.chay .hu-nuoc, .hu.chay .hu-song { animation: an-nuoc 1300ms cubic-bezier(.4, 0, .3, 1) backwards; }
+.hu.chay .hu-nap-bat { animation: an-hu-nap 450ms cubic-bezier(.3, 1.6, .5, 1) 1150ms backwards; }
+.hu.chay .hu-tran { transform-box: fill-box; transform-origin: 50% 0; animation: an-hu-tran 420ms ease-out 1480ms backwards; }
+
+/* 3. Đếm tiền: bản vô hình giữ đúng độ rộng số cuối, số chạy canh phải */
+.dem-w { display: inline-grid; } .dem-w > * { grid-area: 1 / 1; }
+.dem-a { justify-self: end; } .dem-k { visibility: hidden; }
+
+/* 5. Dấu mộc đóng xuống, thẻ rung nhẹ */
+@keyframes an-moc { 0% { opacity: 0; scale: 2.6; rotate: -18deg; } 60% { opacity: 1; scale: .9; rotate: 1deg; } 78% { scale: 1.05; rotate: -1deg; } 100% { opacity: 1; scale: 1; rotate: 0deg; } }
+@keyframes an-rung { 0%, 55% { translate: 0 0; } 62% { translate: 3px 2px; } 70% { translate: -2px -1px; } 78% { translate: 1px 1px; } 100% { translate: 0 0; } }
+.moc.an-moc { animation: an-moc 650ms cubic-bezier(.5, 0, .6, 1.4) var(--tre, 0ms) backwards; }
+.an-rung { animation: an-rung 650ms linear var(--tre, 0ms) backwards; }
+
+/* 6. Giấy nhớ bay vào lần lượt, băng dính dán sau; rê chuột thì nghiêng */
+@keyframes an-giay { 0% { opacity: 0; translate: 0 -70px; rotate: -15deg; } 55% { opacity: 1; translate: 0 8px; rotate: 5deg; } 78% { translate: 0 -2px; rotate: -2deg; } 100% { opacity: 1; translate: 0 0; rotate: 0deg; } }
+@keyframes an-bang { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0); } }
+.an-giay { animation: an-giay 900ms cubic-bezier(.3, 1.2, .5, 1) var(--tre, 0ms) backwards; }
+.an-giay > .bang { animation: an-bang 400ms ease-out calc(var(--tre, 0ms) + 800ms) backwards; }
+.note-list .giay-nho { transition: translate 200ms cubic-bezier(.3, 1.6, .5, 1), rotate 200ms cubic-bezier(.3, 1.6, .5, 1); }
+@media (hover: hover) { .note-list .giay-nho:hover { translate: 0 -4px; rotate: 1.5deg; } }
+
+/* 7. Cột biểu đồ mọc lần lượt */
+@keyframes an-cot { from { transform: scaleY(0); } }
+.bd.chay .bd-thu, .bd.chay .bd-chi { transform-box: fill-box; transform-origin: 50% 100%; animation: an-cot 700ms cubic-bezier(.3, 1.5, .5, 1) calc(var(--i, 0) * 60ms) backwards; }
+
+/* 8. Dòng giao dịch mới: viết ra từ trái sang, nền vàng nhạt dần trong 2 giây */
+@keyframes an-dong { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@keyframes an-to { 0%, 30% { background-color: var(--marker); } 100% { background-color: transparent; } }
+.txr.an-moi { animation: an-dong 800ms cubic-bezier(.4, 0, .2, 1) backwards, an-to 2200ms ease-out backwards; }
+
+/* 9. Thông báo: trượt lên, lắc nhẹ, dấu tích tự vẽ; báo lỗi chỉ trượt lên */
+@keyframes an-toast { 0% { opacity: 0; translate: 0 120%; rotate: -2deg; } 60% { opacity: 1; translate: 0 -8px; rotate: 2.5deg; } 80% { translate: 0 2px; rotate: 0deg; } 100% { opacity: 1; translate: 0 0; rotate: 0deg; } }
+@keyframes an-toast-loi { from { opacity: 0; translate: 0 120%; } to { opacity: 1; translate: 0 0; } }
+@keyframes an-tick { from { stroke-dasharray: 30; stroke-dashoffset: 30; } to { stroke-dasharray: 30; stroke-dashoffset: 0; } }
+.toast { width: max-content; } /* không bị ép xuống dòng khi left:50% chỉ chừa nửa màn hình */
+.toast.show.ok { animation: an-toast 700ms cubic-bezier(.3, 1.5, .5, 1) backwards; }
+.toast.show.bad { animation: an-toast-loi 380ms ease-out backwards; }
+.toast .tk { flex: none; width: 28px; height: 28px; display: grid; place-items: center; background: var(--green-f); border: 2px solid var(--ink); border-radius: 50%; }
+.toast .tk .ic { width: 16px; height: 16px; stroke-width: 3; color: var(--ink); }
+.toast .an-tick { animation: an-tick 400ms ease-out 500ms backwards; }
+@media (prefers-reduced-motion: reduce) { .note-list .giay-nho:hover { translate: none; rotate: none; } }
+
 /* ===== In báo cáo ===== */
 @media print {
   @page { margin: 14mm; }
@@ -892,6 +957,7 @@ tr.trong td { text-align: center; }
   .side, .tabbar, .skip, .top-r, .toast, .overlay, .cal, .cal-back, .bc-tab, .toolbar { display: none !important; }
   .shell { display: block; padding: 0; } .main { padding: 0; } .main-in { max-width: none; gap: 16px; }
   .page > * { animation: none !important; }
+  *, *::before, *::after { animation: none !important; }
   .card, .so-ke, .kpi-strip, .hoa-don { box-shadow: none !important; filter: none !important; break-inside: avoid; }
   .tbl-wrap { overflow: visible; }
   .chart { overflow: visible; }
