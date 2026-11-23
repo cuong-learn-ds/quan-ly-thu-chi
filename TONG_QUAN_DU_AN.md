@@ -29,8 +29,8 @@ quan-ly-thu-chi-main/
 │   ├── thiet-ke/
 │   │   └── 2026-11-07-quan-ly-thu-chi-design.md   tài liệu thiết kế: mục tiêu, kiến trúc, quy tắc R1–R12, API, màn hình
 │   ├── hinh-bao-cao/                              ảnh dùng trong báo cáo: sơ đồ use case/lớp/tuần tự/hoạt động/ERD, ảnh chụp màn hình
-│   ├── BaoCao_DoAn_QuanLyThuChi.docx   báo cáo Word đầy đủ theo mẫu của môn (có PDF cùng tên)
-│   ├── BaoCao_DoAn_QuanLyThuChi.pdf
+│   ├── NhomCuong_Hoang_BaiKQBCCK.docx   báo cáo cuối kỳ (Word, có PDF cùng tên)
+│   ├── NhomCuong_Hoang_BaiKQBCCK.pdf
 │   └── MoTa_DeTai.docx                  mô tả đề tài ngắn để nộp
 ├── server/                        ★ MÃ NGUỒN CHẠY ĐƯỢC (backend + giao diện web)
 │   ├── package.json               khai báo gói và lệnh npm start / npm test
@@ -69,7 +69,7 @@ Thư mục sinh ra khi chạy (đã nằm trong `.gitignore`): `server/node_modu
 | `docs/staruml/` | Lưu mô hình phân tích thiết kế: sơ đồ use case 3 mức và sơ đồ lớp. Mở bằng phần mềm StarUML | Đưa hình vào báo cáo; đối chiếu khi sửa mã |
 | `docs/thiet-ke/` | Tài liệu thiết kế: phạm vi, kiến trúc, 12 quy tắc nghiệp vụ, danh sách API, danh sách màn hình, dữ liệu demo, kế hoạch kiểm thử | Làm căn cứ viết báo cáo; thống nhất trong nhóm |
 | `docs/hinh-bao-cao/` | Ảnh PNG của mọi sơ đồ (vẽ lại từ file StarUML) và ảnh chụp màn hình demo | Chèn vào báo cáo Word; dùng khi làm slide |
-| `docs/BaoCao_DoAn_QuanLyThuChi.docx` | Báo cáo đồ án theo mẫu của môn (bìa, phiếu đánh giá, mục lục tự động, Chương 1–5, tài liệu tham khảo; không có phụ lục) | Nộp cho giảng viên; cần điền họ tên, MSSV, lớp ở bìa |
+| `docs/NhomCuong_Hoang_BaiKQBCCK.docx` | Báo cáo cuối kỳ (bìa, phiếu chấm, mục lục tự động, Chương 1–4, kết luận, tài liệu tham khảo; không có phụ lục) | Nộp cho giảng viên; cần điền họ tên, MSSV, lớp ở bìa |
 | `server/src/domain/` | Chứa các lớp thực thể đúng như sơ đồ lớp và quy tắc nghiệp vụ (không phụ thuộc CSDL hay HTTP) | Người code backend; là phần "khớp 1–1 với sơ đồ lớp" |
 | `server/src/services/` | Điều phối: tải dữ liệu → gọi domain → lưu trong một transaction → tạo thông báo | Người code backend; mỗi nhóm hàm ứng với một nhóm use case |
 | `server/src/app.js` | Khai báo các đường dẫn `/api/...`, kiểm tra đăng nhập và quyền | Người code backend/frontend khi cần xem API |
@@ -135,4 +135,4 @@ Xóa cơ sở dữ liệu `QuanLyThuChi` trong SQL Server để làm lại dữ 
 | Giao diện sáng/tối | Màu chủ đạo xanh lá (#2f9e44); nút đổi chế độ, lưu trong trình duyệt, mặc định theo hệ thống | `CHE_DO` trong `core.js`, `styles.css` |
 | Thống kê quản trị mở rộng | Thêm `soNguoiMoiThangNay`, hiển thị tổng giao dịch và tỷ lệ hoạt động | `S.quanTri.thongKe`, `tabThongKe` |
 
-Tài liệu đã cập nhật theo chức năng bổ sung: mô hình StarUML (thêm Hình 5 và Hình 4.2, hai lớp mới, giá trị `DinhKy` của `LoaiThongBao`), ảnh `docs/hinh-bao-cao/uc_bo_sung.png` và `lop_bo_sung.png`, báo cáo Word (đã đưa vào các chương, số liệu kiểm thử 46/46) và tài liệu thiết kế (R11, R12, API, bộ hẹn giờ). Báo cáo Word và PDF đã được xuất lại; ảnh chụp trong báo cáo (Hình 24–33, 35–63, thêm ba hình về định kỳ, chuyển tiền và mã QR ở mục 3.2) đã chụp lại theo giao diện sổ tay của nhánh `giao-dien-so-tay`.
+Báo cáo `NhomCuong_Hoang_BaiKQBCCK` khớp với bản hiện tại: SQL Server (14 bảng, kịch bản trong `server/sql/`), quy tắc R1–R13, 60 kiểm thử, ảnh chụp giao diện sổ tay (Chương 4).
