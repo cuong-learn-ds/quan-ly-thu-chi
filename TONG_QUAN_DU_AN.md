@@ -27,8 +27,7 @@ quan-ly-thu-chi-main/
 │   │   ├── Cuong_Hoang_QuanLiThuChi.mdj   mô hình StarUML: 23 sơ đồ use case (gồm Hình 5 bổ sung) + sơ đồ lớp Hình 4.1 và Hình 4.2 (lớp bổ sung)
 │   │   └── Hinh_4_1_So_do_lop.png ảnh sơ đồ lớp (bản xuất trước khi chỉnh sửa)
 │   ├── thiet-ke/
-│   │   ├── 2026-11-07-quan-ly-thu-chi-design.md   tài liệu thiết kế: mục tiêu, kiến trúc, quy tắc R1–R12, API, màn hình
-│   │   └── 2026-11-08-backend.md                  kế hoạch cài đặt backend theo từng task
+│   │   └── 2026-11-07-quan-ly-thu-chi-design.md   tài liệu thiết kế: mục tiêu, kiến trúc, quy tắc R1–R12, API, màn hình
 │   ├── hinh-bao-cao/                              ảnh dùng trong báo cáo: sơ đồ use case/lớp/tuần tự/hoạt động/ERD, ảnh chụp màn hình
 │   ├── BaoCao_DoAn_QuanLyThuChi.docx   báo cáo Word đầy đủ theo mẫu của môn (có PDF cùng tên)
 │   ├── BaoCao_DoAn_QuanLyThuChi.pdf
@@ -46,7 +45,10 @@ quan-ly-thu-chi-main/
 │   │   └── services/index.js      ★ nghiệp vụ theo nhóm use case (tài khoản, ví, giao dịch, ngân sách…)
 │   ├── public/                    giao diện web (không cần build)
 │   │   ├── index.html             trang gốc
-│   │   ├── styles.css             giao diện, hỗ trợ màn hình hẹp và chế độ tối
+│   │   ├── styles.css             giao diện sổ tay vẽ tay, hỗ trợ màn hình hẹp và chế độ tối
+│   │   ├── ve.js                  hình vẽ tay (heo đất, hũ ngân sách, bảng dính, gạch chân)
+│   │   ├── lich.js                chọn ngày và khoảng ngày (lịch)
+│   │   ├── fonts/, icons.svg      phông chữ Be Vietnam Pro, Pangolin và bộ biểu tượng (kèm giấy phép)
 │   │   ├── core.js                gọi API, dựng DOM, hộp thoại, biểu đồ tròn và biểu đồ cột SVG
 │   │   ├── app.js                 khung trang, điều hướng, đăng nhập/đăng ký
 │   │   ├── pages-ghi-chep.js      Tổng quan (biểu đồ), Giao dịch, Quét hóa đơn, Ví (chuyển tiền), Giao dịch định kỳ, Danh mục
@@ -67,7 +69,7 @@ Thư mục sinh ra khi chạy (đã nằm trong `.gitignore`): `server/node_modu
 | `docs/staruml/` | Lưu mô hình phân tích thiết kế: sơ đồ use case 3 mức và sơ đồ lớp. Mở bằng phần mềm StarUML | Đưa hình vào báo cáo; đối chiếu khi sửa mã |
 | `docs/thiet-ke/` | Tài liệu thiết kế: phạm vi, kiến trúc, 12 quy tắc nghiệp vụ, danh sách API, danh sách màn hình, dữ liệu demo, kế hoạch kiểm thử | Làm căn cứ viết báo cáo; thống nhất trong nhóm |
 | `docs/hinh-bao-cao/` | Ảnh PNG của mọi sơ đồ (vẽ lại từ file StarUML) và ảnh chụp màn hình demo | Chèn vào báo cáo Word; dùng khi làm slide |
-| `docs/Nhom_..._BaoCao_v2.docx` | Báo cáo đồ án theo mẫu của môn (bìa, phiếu đánh giá, mục lục tự động, Chương 1–5, tài liệu tham khảo, phụ lục) | Nộp cho giảng viên; cần điền họ tên, MSSV, lớp ở bìa |
+| `docs/BaoCao_DoAn_QuanLyThuChi.docx` | Báo cáo đồ án theo mẫu của môn (bìa, phiếu đánh giá, mục lục tự động, Chương 1–5, tài liệu tham khảo; không có phụ lục) | Nộp cho giảng viên; cần điền họ tên, MSSV, lớp ở bìa |
 | `server/src/domain/` | Chứa các lớp thực thể đúng như sơ đồ lớp và quy tắc nghiệp vụ (không phụ thuộc CSDL hay HTTP) | Người code backend; là phần "khớp 1–1 với sơ đồ lớp" |
 | `server/src/services/` | Điều phối: tải dữ liệu → gọi domain → lưu trong một transaction → tạo thông báo | Người code backend; mỗi nhóm hàm ứng với một nhóm use case |
 | `server/src/app.js` | Khai báo các đường dẫn `/api/...`, kiểm tra đăng nhập và quyền | Người code backend/frontend khi cần xem API |
@@ -127,10 +129,10 @@ Xóa thư mục `server/data` để làm lại dữ liệu từ đầu. Đặt b
 |---|---|---|
 | Chuyển tiền giữa các ví | Trừ ví nguồn, cộng ví đích, ghi `ChuyenTien`; không tính vào thu chi; quy tắc R11 | `ChuyenTien` (domain), `S.chuyenTien`, `POST/GET /api/chuyen-tien`, trang Ví |
 | Giao dịch định kỳ | Lịch thu/chi hằng tháng, ngày 1–28; bộ hẹn giờ tạo đúng một giao dịch/tháng; thiếu số dư thì bỏ qua và báo; quy tắc R12 | `GiaoDichDinhKy` (domain), `S.dinhKy`, `/api/giao-dich-dinh-ky`, `jobs.js`, trang Định kỳ |
-| Dashboard Tổng quan | So sánh thu/chi với tháng trước, nút thao tác nhanh, số dư theo ví, mục tiêu tiết kiệm, biểu đồ cột 12 tháng (dùng lại các API có sẵn, không thêm API mới) | `trangTongQuan` trong `pages-ghi-chep.js`, `bieuDoCot` trong `core.js` |
+| Dashboard Tổng quan | So sánh thu/chi với tháng trước, nút thao tác nhanh, số dư theo ví, mục tiêu tiết kiệm, biểu đồ cột 6 tháng (dùng lại các API có sẵn, không thêm API mới) | `trangTongQuan` trong `pages-ghi-chep.js`, `bieuDoCot` trong `core.js` |
 | Nhận xét nhanh và dự báo chi trên Tổng quan | Tính ở trình duyệt từ dữ liệu có sẵn: dự báo chi cả tháng, chi vượt thu, ngân sách vượt, mục tiêu chậm | `trangTongQuan` |
 | Giao diện điện thoại và mã QR | CSS cho màn hình nhỏ, nút + nổi, manifest để thêm vào màn hình chính; API công khai `GET /api/ket-noi-dien-thoai` trả địa chỉ LAN của máy chủ kèm mã QR (SVG, thư viện `qrcode`) | `app.js` (hienQR), `styles.css`, `manifest.webmanifest`, `app.js` trong `src` |
 | Giao diện sáng/tối | Màu chủ đạo xanh lá (#2f9e44); nút đổi chế độ, lưu trong trình duyệt, mặc định theo hệ thống | `CHE_DO` trong `core.js`, `styles.css` |
 | Thống kê quản trị mở rộng | Thêm `soNguoiMoiThangNay`, hiển thị tổng giao dịch và tỷ lệ hoạt động | `S.quanTri.thongKe`, `tabThongKe` |
 
-Tài liệu đã cập nhật theo chức năng bổ sung: mô hình StarUML (thêm Hình 5 và Hình 4.2, hai lớp mới, giá trị `DinhKy` của `LoaiThongBao`), ảnh `docs/hinh-bao-cao/uc_bo_sung.png` và `lop_bo_sung.png`, báo cáo Word (Phụ lục D, số liệu kiểm thử 45/45) và tài liệu thiết kế (R11, R12, API, bộ hẹn giờ). File PDF của báo cáo chưa xuất lại, cần xuất lại từ Word sau khi cập nhật mục lục.
+Tài liệu đã cập nhật theo chức năng bổ sung: mô hình StarUML (thêm Hình 5 và Hình 4.2, hai lớp mới, giá trị `DinhKy` của `LoaiThongBao`), ảnh `docs/hinh-bao-cao/uc_bo_sung.png` và `lop_bo_sung.png`, báo cáo Word (đã đưa vào các chương, số liệu kiểm thử 46/46) và tài liệu thiết kế (R11, R12, API, bộ hẹn giờ). Báo cáo Word và PDF đã được xuất lại; ảnh chụp trong báo cáo (Hình 24–33, 35–63, thêm ba hình về định kỳ, chuyển tiền và mã QR ở mục 3.2) đã chụp lại theo giao diện sổ tay của nhánh `giao-dien-so-tay`.
