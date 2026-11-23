@@ -9,7 +9,7 @@ Website giúp người dùng ghi chép thu chi, quản lý nhiều ví, đặt n
 | Mục | Nội dung |
 |---|---|
 | Loại sản phẩm | Website (chạy trên trình duyệt, giao diện co giãn theo kích thước màn hình) |
-| Tác nhân (actor) | 5 tác nhân (danh từ, không dùng động từ): Khách, Người dùng, Quản trị viên, Nhân viên hỗ trợ, Kiểm toán viên. Bộ hẹn giờ và dịch vụ OCR (Gemini) là thành phần của hệ thống, không phải actor. "Quản lý danh mục" là use case của Quản trị viên |
+| Tác nhân (actor) | 5 tác nhân (danh từ, không dùng động từ): Người dùng (đã đăng ký và đăng nhập), Quản trị viên, Nhân viên hỗ trợ, Kiểm toán viên, Dịch vụ OCR (Gemini, hệ thống bên ngoài). Không có actor "Khách": ai dùng hệ thống cũng phải đăng ký và đăng nhập. Bộ hẹn giờ là thành phần của hệ thống, không phải actor. Ngân hàng (BIDV, MB...) là bên thứ ba được hệ thống hỗ trợ, nằm ở bối cảnh đề tài, không phải actor. "Quản lý danh mục" là use case của Quản trị viên |
 | Công nghệ bản demo | Node.js 24, Express, Microsoft SQL Server (`mssql` + `msnodesqlv8`), JWT, bcryptjs, ExcelJS, giao diện HTML/CSS/JS thuần |
 | Phương án thiết kế ban đầu | ASP.NET Core + SQL Server cho backend (xem mục 4) |
 | Chạy thử | `cd server` → `npm install` → `npm start` → http://localhost:5080 |

@@ -8,9 +8,11 @@ Một cuốn sổ thu chi, nhưng ở trên web.
 
 ## Hệ thống gồm những gì
 
+Bối cảnh: đây là dịch vụ quản lý chi tiêu hỗ trợ các ngân hàng (ví dụ BIDV, MB, là bên thứ ba, không phải tác nhân của hệ thống) giúp khách hàng của họ tự theo dõi thu chi. Ai dùng cũng phải đăng ký và đăng nhập, không có chế độ xem khi chưa có tài khoản.
+
 Hệ thống giúp một người theo dõi tiền của mình: tiền vào, tiền ra, đang nằm ở ví nào, tháng này có tiêu quá tay không, để dành cho mục tiêu tới đâu rồi.
 
-Có bốn loại người dùng:
+Có bốn vai trò đăng nhập (và Dịch vụ OCR là hệ thống bên ngoài đọc ảnh hóa đơn):
 
 - **Người dùng**: ghi chép thu chi, quản lý ví, đặt ngân sách, đặt mục tiêu tiết kiệm, xem báo cáo.
 - **Quản trị viên**: khóa hoặc mở tài khoản, quản lý danh mục mặc định, xem thống kê toàn hệ thống.
