@@ -59,6 +59,8 @@ quan-ly-thu-chi/
 
 > **Cập nhật 2026-11-09 (bản demo đã cài đặt):** bản chạy được dùng **Node.js (Express) + SQLite (`node:sqlite`) + giao diện website HTML/CSS/JS thuần**; mã nguồn ở `server/`. Mô hình miền, quy tắc R1–R10, route ở mục 6, bộ hẹn giờ, quét hóa đơn và dữ liệu demo giữ nguyên. Bảng công nghệ bên dưới là thiết kế ban đầu.
 
+> **Cập nhật 2026-11-16 (CSDL):** bản chạy được chuyển từ SQLite sang **Microsoft SQL Server** (thư viện `mssql`, driver `msnodesqlv8`, đăng nhập Windows qua ODBC Driver 18). CSDL `QuanLyThuChi` gồm 14 bảng, tạo bằng `server/sql/01_tao_csdl.sql` (web tự chạy file này ở lần đầu). Thư mục `server/sql/` có thêm script nhập liệu mẫu (`02`), code chức năng bằng hàm, view và stored procedure trong transaction với TRY/CATCH (`03`), và script chạy thử kèm kết quả (`04`). Tầng service không đổi: `db.js` giữ giao diện `get/all/run/giaoDich`; kiểm thử chạy trên CSDL tạm riêng của SQL Server và tự xóa.
+
 > **Cập nhật tác nhân (2026-11-09):** Bộ hẹn giờ và dịch vụ OCR là thành phần của hệ thống, không phải tác nhân; tác nhân phải là danh từ (không dùng động từ như "Quản lý"). Hệ thống có 5 tác nhân: Khách, Người dùng, Quản trị viên, Nhân viên hỗ trợ, Kiểm toán viên (4 vai trò đăng nhập kế thừa TaiKhoan). "Quản lý danh mục mặc định" là use case của Quản trị viên. Quyền: Quản trị viên khóa/mở khóa, danh mục mặc định, thống kê, tổng kết thủ công; Nhân viên hỗ trợ xem/tìm người dùng và gửi thông báo hỗ trợ (`POST /admin/nguoi-dung/{id}/thong-bao`); Kiểm toán viên chỉ đọc thống kê và danh sách người dùng.
 
 ### 2.1 Công nghệ
@@ -80,6 +82,8 @@ quan-ly-thu-chi/
 - **Controller:** nhận DTO, gọi service, trả DTO. Không chứa logic.
 
 > **Cập nhật 2026-11-10 (chức năng bổ sung):** thêm ba chức năng: chuyển tiền giữa các ví (lớp `ChuyenTien`, quy tắc R11), giao dịch định kỳ hằng tháng (lớp `GiaoDichDinhKy`, quy tắc R12, do bộ hẹn giờ tạo) và biểu đồ cột thu chi 12 tháng trên trang Tổng quan. Mô hình miền có 17 lớp, `LoaiThongBao` thêm giá trị `DinhKy`. Các mục 3, 4, 5, 6, 7, 9, 11 bên dưới đã ghi thêm phần này.
+
+> **Cập nhật 2026-11-16 (chức năng bổ sung):** thêm **Lịch chi tiêu** (xem thu/chi từng ngày trên lịch tháng) và **Nhập giao dịch từ Excel/CSV** (xem trước, báo lỗi từng dòng, nhập trong một transaction). Hai chức năng này chỉ ở tầng service (`S.lich`, `S.nhapGiaoDich`, mô-đun `src/nhap-giao-dich.js`), dùng lại lớp `GiaoDich` và quy tắc R1, R2, R10 có sẵn, không thêm lớp miền mới. Mục 6, 9, 11 đã ghi thêm phần này.
 
 ## 3. Mô hình miền
 
@@ -125,6 +129,8 @@ Kiểu tiền là `decimal(18,2)`, đơn vị VND.
 | R11 | Chuyển tiền: ví nguồn và ví đích phải khác nhau, số tiền > 0 (R1), ví nguồn đủ số dư (R2). Trừ nguồn, cộng đích và ghi lịch sử trong một transaction; không tạo giao dịch thu/chi nên không vào báo cáo | `ChuyenTien` (domain) |
 | R12 | Giao dịch định kỳ: ngày trong tháng từ 1 đến 28; mỗi lịch tạo đúng một giao dịch mỗi tháng (đánh dấu `thangDaChay`); nếu thiếu số dư thì bỏ qua tháng đó và gửi thông báo `DinhKy`, không báo lặp. Ví còn lịch định kỳ thì không xóa được (R4) | `GiaoDichDinhKy` (domain), bộ hẹn giờ |
 
+| R13 | Kế hoạch tháng (bổ sung 2026-11-16): thu nhập dự kiến là số nguyên > 0, tiền để dành ≥ 0, phương pháp `LichSu` hoặc `50-30-20`; mỗi (người dùng, tháng) một kế hoạch, áp dụng lại thì ghi đè. Hạn mức phân bổ là số nguyên ≥ 0 và chỉ cho danh mục chi không phải danh mục hệ thống. Áp dụng ghi `KeHoachThang` và tạo/cập nhật `NganSach` từng danh mục của tháng trong một transaction, nên cảnh báo R6 dùng lại được | `KeHoachThang` (domain) |
+
 Mọi thao tác nhiều bước (ví dụ giao dịch + ví + cảnh báo) chạy trong **một transaction CSDL**.
 
 ## 5. Service và ánh xạ use case
@@ -135,6 +141,7 @@ Mọi thao tác nhiều bước (ví dụ giao dịch + ví + cảnh báo) chạ
 | `ViService` | 2.2, 3.3 | DanhSach, Them, Sua, Xoa |
 | `ChuyenTienService` | 2.10, 3.13 | DanhSach, Them (R11) |
 | `DinhKyService` | 2.11, 3.14 | DanhSach, Tao, Sua, BatTat, Xoa, ChayDenHan (do bộ hẹn giờ gọi, R12) |
+| `KeHoachService` (bổ sung) | — | GoiY (theo thói quen 3 tháng hoặc 50/30/20), ApDung (R13, tạo ngân sách cả tháng), TheoDoi (kế hoạch so với thực tế, dự báo chi cả tháng, nhận xét) |
 | `DanhMucService` | 2.3, 3.4 | DanhSach (mặc định + của mình), Them, Sua, Xoa(chuyenSang) |
 | `GiaoDichService` | 2.4, 3.5 | Them (kèm hóa đơn nếu có), Sua, Xoa, TimKiem (lọc + phân trang 20/trang) |
 | `HoaDonService` | 3.6 | Quet(ảnh) → bản nháp (chưa lưu) |
@@ -169,6 +176,13 @@ GET    /bao-cao/theo-danh-muc?tu&den&loai
 GET    /bao-cao/theo-thoi-gian?nam
 GET    /bao-cao/thang
 GET    /bao-cao/excel?tu&den     → file .xlsx
+GET    /bao-cao/lich?thang&nam   → {ngay[{ngay, thu, chi, soGiaoDich}], tongThu, tongChi, chiTrungBinhNgay, chiNhieuNhat, soNgayCoChi}
+GET    /giao-dich/nhap/mau       → file mẫu .xlsx (cột Ngày, Loại, Danh mục, Ví, Số tiền, Ghi chú)
+POST   /giao-dich/nhap/xem-truoc multipart tep (.xlsx/.csv, ≤ 2 MB, ≤ 1000 dòng) → {tongSoDong, hopLe[], loi[{dong, loi}]}; không ghi CSDL
+POST   /giao-dich/nhap           {dong: hopLe[] đã chọn} → {soDaNhap, tongThu, tongChi}; một transaction, lỗi một dòng thì rollback toàn bộ
+GET    /ke-hoach?thang&nam       → kế hoạch tháng so với thực tế: thu/chi/để dành thực tế, phân bổ từng danh mục, dự báo chi cả tháng, đánh giá
+GET    /ke-hoach/goi-y?thang&nam&phuongPhap=LichSu|50-30-20&thuNhap → gợi ý thu nhập, tiền để dành, hạn mức từng danh mục; không ghi CSDL
+POST   /ke-hoach                 {thang, nam, thuNhapDuKien, tietKiemDuKien, phuongPhap, phanBo[{maDanhMuc, hanMuc}]} → lưu kế hoạch và ngân sách của tháng (R13)
 GET    /thong-bao                GET /thong-bao/so-chua-doc
 PUT    /thong-bao/{id}/da-doc    DELETE /thong-bao/{id}
 GET    /thong-bao/cai-dat        PUT /thong-bao/cai-dat
@@ -258,7 +272,9 @@ frontend/lib/
    - danh sách nhóm theo ngày;
    - bộ lọc;
    - hộp thoại thêm/sửa;
-   - nút Quét hóa đơn.
+   - nút Quét hóa đơn;
+   - nút **Nhập từ file** (bổ sung 2026-11-16): chọn file .xlsx/.csv, tải file mẫu; bảng xem trước có ô chọn từng dòng, dòng lỗi ghi rõ lý do (ngày sai, không có ví/danh mục, ví không đủ số dư khi áp theo thứ tự ngày), dòng giống giao dịch đã có (cùng ngày, ví, danh mục, loại, số tiền) được đánh dấu "Có thể trùng" và mặc định bỏ chọn.
+   - **Lịch chi tiêu (menu Lịch, bổ sung 2026-11-16):** lưới tháng bắt đầu từ thứ Hai, mỗi ô hiện tổng thu/chi rút gọn (45k, 1,2tr), ô càng đậm càng chi nhiều; 4 thẻ tổng thu, tổng chi, chi trung bình/ngày, ngày chi nhiều nhất; bấm ngày để xem giao dịch và thêm giao dịch cho ngày đó.
 4. **Xác nhận hóa đơn:** ảnh bill bên cạnh bảng mặt hàng sửa được; chọn danh mục và ví.
 5. **Ví:** thẻ ví, nút Chuyển tiền giữa ví (chọn ví nguồn, ví đích, số tiền) và lịch sử chuyển tiền.
    - **Giao dịch định kỳ (menu Định kỳ):** danh sách lịch, bật/tắt, thêm/sửa/xóa; chọn loại, danh mục, ví, số tiền, ngày 1–28.
@@ -319,6 +335,14 @@ Dữ liệu demo được nạp tự động khi CSDL còn trống, ở môi tr�
   - R11: cùng ví, số tiền ≤ 0, thiếu số dư, ví người khác (404); tổng số dư không đổi; không vào báo cáo thu chi; ví còn lịch sử không xóa được;
   - R12: ngày 1–28, đến hạn đúng một lần mỗi tháng, tắt thì không chạy, thiếu số dư thì bỏ qua và báo một lần, sửa/xóa, không đụng lịch của người khác;
   - vai trò khác `NguoiDung` nhận 403 ở hai nhóm route mới.
+- **Kiểm thử Lịch và Nhập file (`test/lich-nhap.test.js`, 8 kiểm thử):**
+  - đọc CSV (dấu `;` `,`, ngoặc kép, BOM); chuẩn hóa ngày (YYYY-MM-DD, DD/MM/YYYY, ô Date của Excel, ngày không tồn tại), số tiền (1.200.000, 45,000 đ), loại;
+  - lịch: tổng theo ngày, không lẫn tháng khác, chi trung bình/ngày, tháng sai → 400, R10;
+  - nhập: xem trước báo lỗi từng dòng và không ghi CSDL; áp theo thứ tự ngày; đánh dấu có thể trùng khi nhập lại; một dòng lỗi thì rollback toàn bộ; ví người khác bị từ chối; file mẫu và file xuất từ Báo cáo nhập lại được; file sai định dạng/thiếu cột/rỗng; vai trò khác nhận 403.
+- **Kiểm thử Kế hoạch tháng (`test/ke-hoach.test.js`, 6 kiểm thử):**
+  - domain: kiểm tra dữ liệu, cân đối, dự báo; gợi ý theo thói quen làm tròn lên 50.000đ, không thấp hơn khoản cố định, thiếu tiền thì giảm phần linh hoạt; quy tắc 50/30/20 chia theo nhóm thiết yếu/mong muốn;
+  - API: gợi ý tự điền thu nhập từ lương định kỳ và chi trung bình 3 tháng; áp dụng tạo ngân sách cả tháng; theo dõi tháng hiện tại; dữ liệu sai bị từ chối và không ghi gì; dữ liệu người khác và vai trò khác bị chặn.
+- **Tổng cộng 60 kiểm thử tự động**, chạy trên SQL Server (mỗi tệp kiểm thử một CSDL tạm `QLTC_KiemThu_...`).
 - **Kịch bản kiểm thử thủ công:**
   - Mỗi use case mức 3 có một bảng gồm bước, dữ liệu, kết quả mong đợi và kết quả thực tế.
   - Dùng làm chương Kiểm thử của báo cáo.

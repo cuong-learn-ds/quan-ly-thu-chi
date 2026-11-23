@@ -12,7 +12,7 @@ export class BoHenGio {
     let soTao = 0;
     for (const c of db.all('SELECT * FROM CaiDatNhacNho WHERE gioNhac=?', hhmm)) {
       db.giaoDich(() => {
-        if (c.nhacHangNgay && !db.get('SELECT 1 x FROM GiaoDich WHERE maTaiKhoan=? AND substr(ngayGiaoDich,1,10)=?', c.maTaiKhoan, homNay)
+        if (c.nhacHangNgay && !db.get('SELECT 1 x FROM GiaoDich WHERE maTaiKhoan=? AND CAST(ngayGiaoDich AS DATE)=?', c.maTaiKhoan, homNay)
           && !S.thongBao.daGuiHomNay(c.maTaiKhoan, LoaiThongBao.NhacGhiChep)) {
           S.thongBao.tao(c.maTaiKhoan, LoaiThongBao.NhacGhiChep, 'Hôm nay bạn chưa ghi chép giao dịch nào. Hãy cập nhật thu chi nhé!'); soTao++;
         }

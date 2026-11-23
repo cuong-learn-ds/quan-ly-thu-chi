@@ -226,5 +226,14 @@ test('seed demo: số dư ví khớp tổng giao dịch, chạy hai lần không
   const tongVi = d2.get('SELECT SUM(soDu) s FROM Vi WHERE maTaiKhoan=?', nd).s;
   assert.equal(tongVi, 8_000_000 + 20_000_000 + 6_000_000 + thuChi);
   assert.ok(d2.get('SELECT COUNT(*) n FROM GiaoDich WHERE maTaiKhoan=?', nd).n >= 80);
-  assert.equal(d2.get('SELECT COUNT(*) n FROM NganSach WHERE maTaiKhoan=?', nd).n, 3);
+  assert.ok(d2.get('SELECT COUNT(*) n FROM NganSach WHERE maTaiKhoan=?', nd).n >= 3);
+  // Yêu cầu nhập liệu: mọi bảng có ít nhất 9 dòng
+  for (const bang of ['TaiKhoan', 'CaiDatNhacNho', 'Vi', 'DanhMuc', 'MucTieuTietKiem', 'GiaoDich', 'ChuyenTien', 'GiaoDichDinhKy', 'HoaDon', 'ChiTietHoaDon',
+    'NganSach', 'KeHoachThang', 'ThongBao', 'BaoCaoThang']) {
+    assert.ok(d2.get(`SELECT COUNT(*) n FROM ${bang}`).n >= 9, `${bang} có ít hơn 9 dòng`);
+  }
+  // Không người dùng mẫu nào có tổng số dư âm (mọi khoản chi đều qua kiểm tra R2)
+  const lech = d2.get(`SELECT COUNT(*) n FROM TaiKhoan t WHERE t.loaiTaiKhoan='NguoiDung' AND
+    (SELECT SUM(soDu) FROM Vi WHERE maTaiKhoan=t.maTaiKhoan) < 0`).n;
+  assert.equal(lech, 0);
 });

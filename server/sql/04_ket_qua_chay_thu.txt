@@ -1,0 +1,137 @@
+﻿Changed database context to 'QuanLyThuChi'.
+===== 1. Thêm giao dịch chi hợp lệ: số dư ví giảm, kiểm tra ngân sách (ROLLBACK sau khi xem)
+soDuTruoc
+---------
+6080000
+maGiaoDich maTaiKhoan maVi maDanhMuc maMucTieu soTien loai ngayGiaoDich ghiChu soDuViSauGiaoDich
+---------- ---------- ---- --------- --------- ------ ---- ------------ ------ -----------------
+267 4 1 1 NULL 45000 Chi 2026-11-16 17:07:24 Cơm trưa (chạy thử) 6035000
+===== 2. Chi vượt số dư (R2) -> bị từ chối, không ghi gì
+   Lỗi: Số dư ví không đủ
+===== 3. Danh mục khác loại giao dịch -> bị từ chối
+   Lỗi: Danh mục không đúng loại giao dịch
+===== 4. Chuyển tiền giữa ví (R11): tổng số dư không đổi (ROLLBACK)
+tongTruoc
+---------
+61127000
+maVi tenVi soDu
+---- ----- ----
+1 Tiền mặt 7080000
+2 Vietcombank 48077000
+tongSau
+-------
+61127000
+   Lỗi: Ví nguồn và ví đích phải khác nhau
+===== 5. Lập ngân sách trùng tháng (R6) -> bị từ chối
+   Lỗi: Danh mục này đã có ngân sách trong tháng
+===== 6. Gợi ý kế hoạch tháng sau theo thói quen 3 tháng (R13)
+thang nam phuongPhap thuNhapDuKien tietKiemDeXuat mucTieuCanMoiThang tongChiDeXuat conLai
+----- --- ---------- ------------- -------------- ------------------ ------------- ------
+12 2026 LichSu 15000000 3510000 3501000 5400000 6090000
+maDanhMuc tenDanhMuc nhom trungBinh3Thang coDinh hanMucDeXuat
+--------- ---------- ---- --------------- ------ ------------
+1 Ăn uống Thiết yếu 1137667 0 1150000
+2 Đi lại Thiết yếu 150000 0 150000
+4 Hóa đơn Thiết yếu 0 450000 450000
+6 Sức khỏe Thiết yếu 51667 0 100000
+7 Giáo dục Thiết yếu 86000 300000 300000
+3 Mua sắm Mong muốn 2485667 0 2500000
+5 Giải trí Mong muốn 713333 0 750000
+8 Khác Mong muốn 0 0 0
+===== 7. Gợi ý theo quy tắc 50/30/20 với thu nhập người dùng nhập 20.000.000đ
+thang nam phuongPhap thuNhapDuKien tietKiemDeXuat mucTieuCanMoiThang tongChiDeXuat conLai
+----- --- ---------- ------------- -------------- ------------------ ------------- ------
+12 2026 50-30-20 20000000 4000000 3501000 15960000 40000
+maDanhMuc tenDanhMuc nhom trungBinh3Thang coDinh hanMucDeXuat
+--------- ---------- ---- --------------- ------ ------------
+1 Ăn uống Thiết yếu 1137667 0 5440000
+2 Đi lại Thiết yếu 150000 0 710000
+4 Hóa đơn Thiết yếu 0 450000 2150000
+6 Sức khỏe Thiết yếu 51667 0 240000
+7 Giáo dục Thiết yếu 86000 300000 1430000
+3 Mua sắm Mong muốn 2485667 0 4660000
+5 Giải trí Mong muốn 713333 0 1330000
+8 Khác Mong muốn 0 0 0
+===== 8. Áp dụng kế hoạch tháng sau bằng một lệnh (ROLLBACK)
+thang nam phuongPhap thuNhapDuKien thuThucTe chiKeHoach chiThucTe tietKiemDuKien tietKiemThucTe conLaiKeHoach ngayDaQua soNgayTrongThang duBaoChiCaThang duBaoConLaiCuoiThang danhGia
+----- --- ---------- ------------- --------- ---------- --------- -------------- -------------- ------------- --------- ---------------- --------------- -------------------- -------
+12 2026 LichSu 15000000 0 5850000 0 2000000 0 7150000 0 31 0 13000000 Đang trong kế hoạch
+tenDanhMuc hanMuc soDaChi tienDo trangThai
+---------- ------ ------- ------ ---------
+Ăn uống 3000000 0 .0 Bình thường
+Đi lại 900000 0 .0 Bình thường
+Mua sắm 300000 0 .0 Bình thường
+Hóa đơn 450000 0 .0 Bình thường
+Giải trí 300000 0 .0 Bình thường
+Sức khỏe 300000 0 .0 Bình thường
+Giáo dục 300000 0 .0 Bình thường
+Khác 300000 0 .0 Bình thường
+===== 9. Theo dõi kế hoạch tháng hiện tại so với thực tế, dự báo cuối tháng
+thang nam phuongPhap thuNhapDuKien thuThucTe chiKeHoach chiThucTe tietKiemDuKien tietKiemThucTe conLaiKeHoach ngayDaQua soNgayTrongThang duBaoChiCaThang duBaoConLaiCuoiThang danhGia
+----- --- ---------- ------------- --------- ---------- --------- -------------- -------------- ------------- --------- ---------------- --------------- -------------------- -------
+11 2026 LichSu 15000000 15000000 4500000 6133000 3500000 0 7000000 16 30 11499375 625 Có nguy cơ chi vượt kế hoạch
+tenDanhMuc hanMuc soDaChi tienDo trangThai
+---------- ------ ------- ------ ---------
+Giải trí 450000 830000 184.4 Vượt
+Mua sắm 1900000 3077000 161.9 Vượt
+Ăn uống 1100000 1693000 153.9 Vượt
+Giáo dục 300000 258000 86.0 Đạt ngưỡng
+Đi lại 300000 120000 40.0 Bình thường
+Hóa đơn 450000 0 .0 Bình thường
+===== 10. Nạp tiền vào mục tiêu (R7) (ROLLBACK)
+maMucTieu maTaiKhoan tenMucTieu soTienMucTieu soTienHienTai hanChot tienDo canMoiThang
+--------- ---------- ---------- ------------- ------------- ------- ------ -----------
+1 4 Mua laptop 20000000 3500000 2027-05-16 17.5 2750000
+===== 11. Lịch chi tiêu tháng hiện tại và báo cáo theo danh mục
+ngay thu chi soGiaoDich
+---- --- --- ----------
+2026-11-01 15000000 458000 3
+2026-11-02 0 20000 1
+2026-11-03 0 300000 1
+2026-11-04 0 307000 2
+2026-11-05 0 110000 1
+2026-11-06 0 580000 1
+2026-11-07 0 168000 2
+2026-11-08 0 20000 1
+2026-11-09 0 170000 1
+2026-11-10 0 255000 2
+2026-11-11 0 20000 1
+2026-11-12 0 20000 1
+2026-11-13 0 452000 2
+2026-11-14 0 100000 1
+2026-11-15 0 20000 1
+2026-11-16 0 3133000 7
+tenDanhMuc soTien tyLe
+---------- ------ ----
+Mua sắm 3077000 50.2
+Ăn uống 1693000 27.6
+Giải trí 830000 13.5
+Giáo dục 258000 4.2
+Sức khỏe 155000 2.5
+Đi lại 120000 2.0
+===== 12. Tổng kết tháng trước chạy lại (R9): không tạo báo cáo trùng (ROLLBACK)
+soBaoCaoTruoc
+-------------
+9
+soNguoiDaXuLy
+-------------
+8
+soBaoCaoSau
+-----------
+9
+===== 13. Quản trị viên tự khóa mình (R8) -> bị từ chối; thống kê hệ thống
+   Lỗi: Không thể tự khóa tài khoản của mình
+soNguoiDung dangHoatDong biKhoa nguoiMoiThangNay giaoDichThangNay tongGiaoDich soKeHoachThangNay
+----------- ------------ ------ ---------------- ---------------- ------------ -----------------
+9 8 1 0 76 255 9
+maTaiKhoan hoTen email trangThai soVi tongSoDu
+---------- ----- ----- --------- ---- --------
+4 Cường Hoàng demo@demo.vn HoatDong 3 61127000
+5 Nguyễn Văn An an@demo.vn HoatDong 2 33100000
+6 Trần Thị Bình binh@demo.vn HoatDong 2 25400000
+7 Lê Hoàng Châu chau@demo.vn HoatDong 2 50370000
+8 Phạm Minh Dũng dung@demo.vn HoatDong 2 22390000
+9 Hoàng Thu Hà ha@demo.vn HoatDong 2 40480000
+10 Võ Thanh Khoa khoa@demo.vn HoatDong 2 30120000
+11 Đặng Ngọc Lan lan@demo.vn HoatDong 2 25260000
+12 Bùi Quốc Nam nam@demo.vn BiKhoa 2 33890000

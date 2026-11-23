@@ -1,114 +1,119 @@
-import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+// Tầng truy cập dữ liệu: Microsoft SQL Server.
+// Giữ giao diện đồng bộ (get/all/run/giaoDich) để tầng nghiệp vụ viết tuần tự, dễ đọc, và mọi thao tác nhiều bước
+// nằm gọn trong một transaction. Kết nối thật chạy trong worker (db-worker.js); luồng chính chờ kết quả bằng Atomics.
+import { Worker, MessageChannel, receiveMessageOnPort } from 'node:worker_threads';
+import { readFileSync } from 'node:fs';
+import { join, dirname, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const SCHEMA = `
-PRAGMA foreign_keys = ON;
-CREATE TABLE IF NOT EXISTS TaiKhoan (
-  maTaiKhoan INTEGER PRIMARY KEY AUTOINCREMENT,
-  loaiTaiKhoan TEXT NOT NULL CHECK (loaiTaiKhoan IN ('NguoiDung','QuanTriVien','NhanVienHoTro','KiemToanVien')),
-  hoTen TEXT NOT NULL, email TEXT NOT NULL UNIQUE, matKhauHash TEXT NOT NULL,
-  trangThai TEXT NOT NULL DEFAULT 'HoatDong', ngayTao TEXT NOT NULL, lyDoKhoa TEXT, donViTienTe TEXT DEFAULT 'VND'
-);
-CREATE TABLE IF NOT EXISTS CaiDatNhacNho (
-  maCaiDat INTEGER PRIMARY KEY AUTOINCREMENT, maTaiKhoan INTEGER NOT NULL UNIQUE REFERENCES TaiKhoan(maTaiKhoan),
-  nhacHangNgay INTEGER NOT NULL DEFAULT 1, gioNhac TEXT NOT NULL DEFAULT '20:00', nhacNganSach INTEGER NOT NULL DEFAULT 1, nhacMucTieu INTEGER NOT NULL DEFAULT 1
-);
-CREATE TABLE IF NOT EXISTS Vi (
-  maVi INTEGER PRIMARY KEY AUTOINCREMENT, maTaiKhoan INTEGER NOT NULL REFERENCES TaiKhoan(maTaiKhoan),
-  tenVi TEXT NOT NULL, loaiVi TEXT NOT NULL, soDu INTEGER NOT NULL DEFAULT 0, ngayTao TEXT NOT NULL,
-  UNIQUE (maTaiKhoan, tenVi)
-);
-CREATE TABLE IF NOT EXISTS DanhMuc (
-  maDanhMuc INTEGER PRIMARY KEY AUTOINCREMENT, maTaiKhoan INTEGER REFERENCES TaiKhoan(maTaiKhoan),
-  tenDanhMuc TEXT NOT NULL, loai TEXT NOT NULL, bieuTuong TEXT NOT NULL DEFAULT 'category', mauSac TEXT NOT NULL DEFAULT '#607d8b',
-  laMacDinh INTEGER NOT NULL DEFAULT 0, laHeThong INTEGER NOT NULL DEFAULT 0
-);
-CREATE TABLE IF NOT EXISTS MucTieuTietKiem (
-  maMucTieu INTEGER PRIMARY KEY AUTOINCREMENT, maTaiKhoan INTEGER NOT NULL REFERENCES TaiKhoan(maTaiKhoan),
-  tenMucTieu TEXT NOT NULL, soTienMucTieu INTEGER NOT NULL, soTienHienTai INTEGER NOT NULL DEFAULT 0, hanChot TEXT NOT NULL, ngayTao TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS GiaoDich (
-  maGiaoDich INTEGER PRIMARY KEY AUTOINCREMENT, maTaiKhoan INTEGER NOT NULL REFERENCES TaiKhoan(maTaiKhoan),
-  maVi INTEGER NOT NULL REFERENCES Vi(maVi), maDanhMuc INTEGER NOT NULL REFERENCES DanhMuc(maDanhMuc),
-  maMucTieu INTEGER REFERENCES MucTieuTietKiem(maMucTieu),
-  soTien INTEGER NOT NULL CHECK (soTien > 0), loai TEXT NOT NULL, ngayGiaoDich TEXT NOT NULL, ghiChu TEXT
-);
-CREATE INDEX IF NOT EXISTS ix_gd_tk_ngay ON GiaoDich(maTaiKhoan, ngayGiaoDich);
-CREATE TABLE IF NOT EXISTS ChuyenTien (
-  maChuyenTien INTEGER PRIMARY KEY AUTOINCREMENT, maTaiKhoan INTEGER NOT NULL REFERENCES TaiKhoan(maTaiKhoan),
-  maViNguon INTEGER NOT NULL REFERENCES Vi(maVi), maViDich INTEGER NOT NULL REFERENCES Vi(maVi),
-  soTien INTEGER NOT NULL CHECK (soTien > 0), ngayChuyen TEXT NOT NULL, ghiChu TEXT,
-  CHECK (maViNguon <> maViDich)
-);
-CREATE TABLE IF NOT EXISTS GiaoDichDinhKy (
-  maDinhKy INTEGER PRIMARY KEY AUTOINCREMENT, maTaiKhoan INTEGER NOT NULL REFERENCES TaiKhoan(maTaiKhoan),
-  maVi INTEGER NOT NULL REFERENCES Vi(maVi), maDanhMuc INTEGER NOT NULL REFERENCES DanhMuc(maDanhMuc),
-  soTien INTEGER NOT NULL CHECK (soTien > 0), loai TEXT NOT NULL, ngayTrongThang INTEGER NOT NULL CHECK (ngayTrongThang BETWEEN 1 AND 28),
-  ghiChu TEXT, dangBat INTEGER NOT NULL DEFAULT 1, thangDaChay TEXT, ngayTao TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS HoaDon (
-  maHoaDon INTEGER PRIMARY KEY AUTOINCREMENT, maGiaoDich INTEGER NOT NULL UNIQUE REFERENCES GiaoDich(maGiaoDich) ON DELETE CASCADE,
-  tenCuaHang TEXT, ngayHoaDon TEXT NOT NULL, tongTien INTEGER NOT NULL, anhHoaDon TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE IF NOT EXISTS ChiTietHoaDon (
-  maChiTiet INTEGER PRIMARY KEY AUTOINCREMENT, maHoaDon INTEGER NOT NULL REFERENCES HoaDon(maHoaDon) ON DELETE CASCADE,
-  tenMatHang TEXT NOT NULL, soLuong INTEGER NOT NULL, donGia INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS NganSach (
-  maNganSach INTEGER PRIMARY KEY AUTOINCREMENT, maTaiKhoan INTEGER NOT NULL REFERENCES TaiKhoan(maTaiKhoan),
-  maDanhMuc INTEGER NOT NULL REFERENCES DanhMuc(maDanhMuc), hanMuc INTEGER NOT NULL, thang INTEGER NOT NULL, nam INTEGER NOT NULL,
-  nguongCanhBao INTEGER NOT NULL DEFAULT 80, daCanhBaoNguong INTEGER NOT NULL DEFAULT 0, daCanhBaoVuot INTEGER NOT NULL DEFAULT 0,
-  UNIQUE (maTaiKhoan, maDanhMuc, thang, nam)
-);
-CREATE TABLE IF NOT EXISTS ThongBao (
-  maThongBao INTEGER PRIMARY KEY AUTOINCREMENT, maTaiKhoan INTEGER NOT NULL REFERENCES TaiKhoan(maTaiKhoan),
-  loai TEXT NOT NULL, noiDung TEXT NOT NULL, daDoc INTEGER NOT NULL DEFAULT 0, ngayTao TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS BaoCaoThang (
-  maBaoCao INTEGER PRIMARY KEY AUTOINCREMENT, maTaiKhoan INTEGER NOT NULL REFERENCES TaiKhoan(maTaiKhoan),
-  thang INTEGER NOT NULL, nam INTEGER NOT NULL, tongThu INTEGER NOT NULL, tongChi INTEGER NOT NULL, soDanhMucVuot INTEGER NOT NULL, ngayLap TEXT NOT NULL,
-  UNIQUE (maTaiKhoan, thang, nam)
-);
-`;
+const goc = join(dirname(fileURLToPath(import.meta.url)), '..');
+export const KICH_BAN_TAO_BANG = join(goc, 'sql', '01_tao_csdl.sql');
 
-export function moCsdl(duongDan = ':memory:') {
-  if (duongDan !== ':memory:') mkdirSync(dirname(duongDan), { recursive: true });
-  const db = new DatabaseSync(duongDan);
-  db.exec(SCHEMA);
-  nangCap(db);
-  return new Csdl(db);
+/** Lỗi do SQL Server trả về (vi phạm khóa, ràng buộc...). `number` là mã lỗi SQL Server. */
+export class LoiCsdl extends Error {
+  constructor(message, number) { super(message); this.number = number; }
+  get laTrung() { return this.number === 2627 || this.number === 2601 || /duplicate key|UNIQUE KEY/i.test(this.message); }
 }
 
-/** Bọc DatabaseSync: truy vấn gọn + transaction (mọi thao tác nhiều bước chạy trong 1 transaction). */
-export class Csdl {
-  constructor(db) { this.db = db; this.sau = 0; }
-  all(sql, ...p) { return this.db.prepare(sql).all(...p); }
-  get(sql, ...p) { return this.db.prepare(sql).get(...p); }
-  run(sql, ...p) {
-    const r = this.db.prepare(sql).run(...p);
-    return { id: Number(r.lastInsertRowid), changes: Number(r.changes) };
+/** Chuỗi kết nối: biến môi trường DB_SERVER (mặc định localhost), đăng nhập Windows, ODBC Driver 18. */
+function chuoiKetNoi(csdl) {
+  if (process.env.DB_CONNECTION) return process.env.DB_CONNECTION.replace('{db}', csdl);
+  const may = process.env.DB_SERVER ?? 'localhost';
+  const driver = process.env.DB_DRIVER ?? 'ODBC Driver 18 for SQL Server';
+  return `Driver={${driver}};Server=${may};Database=${csdl};Trusted_Connection=yes;TrustServerCertificate=yes;`;
+}
+
+/** Đổi '?' thành @v0, @v1... (bỏ qua dấu ? nằm trong chuỗi '...'). */
+function doiThamSo(cau) {
+  let i = 0; let trongChuoi = false; let kq = '';
+  for (const c of cau) {
+    if (c === "'") trongChuoi = !trongChuoi;
+    kq += c === '?' && !trongChuoi ? `@v${i++}` : c;
   }
-  /** Chạy fn trong transaction; ném lỗi thì ROLLBACK, CSDL không đổi. Cho phép lồng nhau (savepoint). */
+  return kq;
+}
+
+// ---- Một worker dùng chung cho cả tiến trình
+let kenh = null;
+function layKenh() {
+  if (kenh) return kenh;
+  const co = new Int32Array(new SharedArrayBuffer(4));
+  const { port1, port2 } = new MessageChannel();
+  const worker = new Worker(new URL('./db-worker.js', import.meta.url), {
+    workerData: { port: port2, co }, transferList: [port2], env: process.env,
+    execArgv: [], // không kế thừa cờ của tiến trình cha (ví dụ --input-type) làm worker hỏng
+  });
+  worker.unref(); port1.unref();
+  kenh = {
+    goi(lenh, choToiDa = 60_000) {
+      Atomics.store(co, 0, 0);
+      port1.postMessage(lenh);
+      if (Atomics.wait(co, 0, 0, choToiDa) === 'timed-out') throw new Error('Hết thời gian chờ SQL Server (kiểm tra dịch vụ MSSQLSERVER và ODBC Driver 18)');
+      const tin = receiveMessageOnPort(port1)?.message;
+      if (!tin?.ok) throw new LoiCsdl(tin?.message ?? 'Lỗi CSDL', tin?.number);
+      return tin;
+    },
+  };
+  return kenh;
+}
+
+let soPhien = 0;
+const dangMo = new Set();
+process.once('exit', () => { for (const db of [...dangMo]) { try { db.dong(); } catch { /* bỏ qua */ } } });
+
+export class Csdl {
+  constructor(tenCsdl, { xoaTruoc = false, xoaKhiDong = false } = {}) {
+    this.ten = tenCsdl;
+    this.id = ++soPhien;
+    this.sau = 0;
+    this.xoaKhiDong = xoaKhiDong;
+    layKenh().goi({ op: 'mo', id: this.id, ten: tenCsdl, ketNoi: { master: chuoiKetNoi('master'), csdl: chuoiKetNoi(tenCsdl) }, taoBang: readFileSync(KICH_BAN_TAO_BANG, 'utf8'), xoaTruoc }, 120_000);
+    dangMo.add(this);
+  }
+
+  _goi(lenh) { return layKenh().goi({ ...lenh, id: this.id }); }
+
+  all(cau, ...p) { return this._goi({ op: 'query', sql: doiThamSo(cau), params: p }).rows; }
+  get(cau, ...p) { return this.all(cau, ...p)[0]; }
+  /** INSERT trả thêm mã tự tăng (SCOPE_IDENTITY) để dùng tiếp. */
+  run(cau, ...p) {
+    const laThem = /^\s*INSERT\s/i.test(cau);
+    const r = this._goi({ op: 'query', sql: doiThamSo(cau) + (laThem ? '; SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;' : ''), params: p });
+    return { id: laThem ? r.rows[0]?.id ?? null : null, changes: r.affected };
+  }
+  exec(kichBan) { this._goi({ op: 'batch', sql: kichBan }); }
+
+  /** Chạy fn trong MỘT transaction; lồng nhau thì dùng chung transaction ngoài cùng. Lỗi -> ROLLBACK. */
   giaoDich(fn) {
     if (this.sau > 0) return fn();
-    this.db.exec('BEGIN');
+    this._goi({ op: 'begin' });
     this.sau++;
-    try { const r = fn(); this.db.exec('COMMIT'); return r; }
-    catch (e) { this.db.exec('ROLLBACK'); throw e; }
-    finally { this.sau--; }
+    try {
+      const r = fn();
+      this._goi({ op: 'commit' });
+      return r;
+    } catch (e) {
+      this._goi({ op: 'rollback' });
+      throw e;
+    } finally { this.sau--; }
+  }
+
+  /** Đóng kết nối; CSDL tạm của kiểm thử thì xóa luôn. */
+  dong() {
+    if (!dangMo.has(this)) return;
+    dangMo.delete(this);
+    this._goi({ op: 'dong', xoa: this.xoaKhiDong });
   }
 }
 
-/** CSDL tạo từ bản cũ (chỉ 2 loại tài khoản): tạo lại bảng TaiKhoan với ràng buộc mới, giữ nguyên dữ liệu. */
-function nangCap(db) {
-  const r = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='TaiKhoan'").get();
-  if (!r || r.sql.includes('KiemToanVien')) return;
-  const moi = SCHEMA.match(/CREATE TABLE IF NOT EXISTS TaiKhoan \(.*?\n\);/s)[0].replace('IF NOT EXISTS TaiKhoan', 'TaiKhoan_moi');
-  db.exec('PRAGMA foreign_keys = OFF; BEGIN;');
-  try {
-    db.exec(moi);
-    db.exec('INSERT INTO TaiKhoan_moi SELECT * FROM TaiKhoan; DROP TABLE TaiKhoan; ALTER TABLE TaiKhoan_moi RENAME TO TaiKhoan; COMMIT;');
-  } catch (e) { db.exec('ROLLBACK;'); throw e; }
-  db.exec('PRAGMA foreign_keys = ON;');
+/**
+ * Mở CSDL. Tên mặc định QuanLyThuChi (hoặc DB_NAME). Lần đầu tự tạo CSDL và bảng từ sql/01_tao_csdl.sql.
+ * ':memory:' dùng cho kiểm thử: tạo CSDL tạm riêng và tự xóa khi đóng hoặc khi tiến trình kết thúc.
+ */
+export function moCsdl(ten = process.env.DB_NAME ?? 'QuanLyThuChi') {
+  if (ten === ':memory:') {
+    const tep = basename(process.argv[1] ?? 'kiem_thu').replace(/\W+/g, '_').slice(0, 40);
+    return new Csdl(`QLTC_KiemThu_${tep}_${process.pid}_${soPhien + 1}`, { xoaTruoc: true, xoaKhiDong: true });
+  }
+  return new Csdl(ten);
 }
