@@ -10,7 +10,7 @@ Website giúp người dùng ghi chép thu chi, quản lý nhiều ví, đặt n
 |---|---|
 | Loại sản phẩm | Website (chạy trên trình duyệt, giao diện co giãn theo kích thước màn hình) |
 | Tác nhân (actor) | 5 tác nhân (danh từ, không dùng động từ): Khách, Người dùng, Quản trị viên, Nhân viên hỗ trợ, Kiểm toán viên. Bộ hẹn giờ và dịch vụ OCR (Gemini) là thành phần của hệ thống, không phải actor. "Quản lý danh mục" là use case của Quản trị viên |
-| Công nghệ bản demo | Node.js 24, Express, SQLite (`node:sqlite`), JWT, bcryptjs, ExcelJS, giao diện HTML/CSS/JS thuần |
+| Công nghệ bản demo | Node.js 24, Express, Microsoft SQL Server (`mssql` + `msnodesqlv8`), JWT, bcryptjs, ExcelJS, giao diện HTML/CSS/JS thuần |
 | Phương án thiết kế ban đầu | ASP.NET Core + SQL Server cho backend (xem mục 4) |
 | Chạy thử | `cd server` → `npm install` → `npm start` → http://localhost:5080 |
 | Tài khoản demo (mật khẩu `Demo@123`) | `demo@demo.vn` (người dùng), `admin@demo.vn` (quản trị viên), `hotro@demo.vn` (nhân viên hỗ trợ), `kiemtoan@demo.vn` (kiểm toán viên) |
@@ -37,7 +37,7 @@ quan-ly-thu-chi-main/
 │   ├── src/
 │   │   ├── index.js               điểm khởi động: mở CSDL, nạp dữ liệu, chạy server và bộ hẹn giờ
 │   │   ├── app.js                 dựng REST API (route, xác thực JWT, phân quyền, xử lý lỗi)
-│   │   ├── db.js                  tạo bảng SQLite, bọc truy vấn và transaction
+│   │   ├── db.js                  kết nối SQL Server (worker), bọc truy vấn và transaction
 │   │   ├── ha-tang.js             đồng hồ giờ Việt Nam, băm mật khẩu, JWT, OCR (Gemini/bản giả), lưu ảnh
 │   │   ├── jobs.js                bộ hẹn giờ: giao dịch định kỳ, nhắc ghi chép, nhắc mục tiêu, tổng kết cuối tháng
 │   │   ├── seed.js                danh mục mặc định, tài khoản admin, dữ liệu demo
@@ -60,7 +60,7 @@ quan-ly-thu-chi-main/
 │       └── tinh-nang-moi.test.js  kiểm thử chuyển tiền giữa ví và giao dịch định kỳ
 ```
 
-Thư mục sinh ra khi chạy (đã nằm trong `.gitignore`): `server/node_modules/` (gói cài đặt), `server/data/` (file CSDL SQLite), `server/uploads/` (ảnh hóa đơn đã tải lên).
+Thư mục sinh ra khi chạy (đã nằm trong `.gitignore`): `server/node_modules/` (gói cài đặt), `server/uploads/` (ảnh hóa đơn đã tải lên).
 
 ## 3. Mỗi thư mục dùng vào việc gì
 
@@ -80,7 +80,7 @@ Thư mục sinh ra khi chạy (đã nằm trong `.gitignore`): `server/node_modu
 
 ## 4. Công nghệ
 
-Backend Node.js (Express) + SQLite, giao diện website HTML/CSS/JS thuần. Mô hình miền (17 lớp), quy tắc R1–R12 và danh sách API bám theo thiết kế.
+Backend Node.js (Express) + Microsoft SQL Server (kịch bản trong `server/sql/`), giao diện website HTML/CSS/JS thuần. Mô hình miền (17 lớp), quy tắc R1–R12 và danh sách API bám theo thiết kế.
 
 ## 5. Luồng hoạt động tổng thể
 
@@ -92,7 +92,7 @@ Trình duyệt (server/public) ──HTTP/JSON + JWT──▶ app.js (route, ph�
                                                      │
                                        ┌─────────────┴─────────────┐
                                        ▼                           ▼
-                               domain/ (quy tắc)          db.js → SQLite (server/data)
+                               domain/ (quy tắc)          db.js → SQL Server (QuanLyThuChi)
                                        ▲
               jobs.js (bộ hẹn giờ) ────┘   ha-tang.js: OCR Gemini, ảnh hóa đơn, JWT, BCrypt
 ```
@@ -118,10 +118,10 @@ Trình duyệt (server/public) ──HTTP/JSON + JWT──▶ app.js (route, ph�
 cd server
 npm install      # cài gói lần đầu
 npm start        # chạy website tại http://localhost:5080
-npm test         # chạy 46 kiểm thử tự động
+npm test         # chạy 60 kiểm thử tự động
 ```
 
-Xóa thư mục `server/data` để làm lại dữ liệu từ đầu. Đặt biến môi trường `GEMINI_API_KEY` để quét hóa đơn bằng Gemini thật; nếu không đặt, hệ thống dùng bản giả trả dữ liệu mẫu.
+Xóa cơ sở dữ liệu `QuanLyThuChi` trong SQL Server để làm lại dữ liệu từ đầu. Đặt biến môi trường `GEMINI_API_KEY` để quét hóa đơn bằng Gemini thật; nếu không đặt, hệ thống dùng bản giả trả dữ liệu mẫu.
 
 ## Chức năng bổ sung (cập nhật 2026-11-10)
 

@@ -34,16 +34,16 @@ const hangChuDe = () => {
   b.onclick = () => CHE_DO.doi(); ve();
   return b;
 };
-import { trangTongQuan, trangGiaoDich, trangVi, trangDanhMuc, trangDinhKy } from './pages-ghi-chep.js';
-import { trangNganSach, trangMucTieu, trangBaoCao, trangThongBao, trangCaiDat, trangTaiKhoan, trangQuanTri, trangHoTro, trangKiemToan } from './pages-ke-hoach.js';
+import { trangTongQuan, trangGiaoDich, trangLich, trangVi, trangDanhMuc, trangDinhKy } from './pages-ghi-chep.js';
+import { trangKeHoach, trangNganSach, trangMucTieu, trangBaoCao, trangThongBao, trangCaiDat, trangTaiKhoan, trangQuanTri, trangHoTro, trangKiemToan } from './pages-ke-hoach.js';
 
 const app = document.getElementById('app');
 const TK = ['#/tai-khoan', 'user', 'Tài khoản'];
 // Menu theo vai trò, chia nhóm: [nhãn nhóm | null, [[href, icon, nhãn], ...]]. Khách chỉ thấy trang Đăng nhập / Đăng ký.
 const MENU = {
   NguoiDung: [
-    ['Ghi chép', [['#/tong-quan', 'layout-dashboard', 'Tổng quan'], ['#/giao-dich', 'arrow-left-right', 'Giao dịch'], ['#/vi', 'wallet', 'Ví'], ['#/dinh-ky', 'repeat', 'Định kỳ'], ['#/danh-muc', 'tags', 'Danh mục']]],
-    ['Kế hoạch', [['#/ngan-sach', 'gauge', 'Ngân sách'], ['#/muc-tieu', 'target', 'Mục tiêu'], ['#/bao-cao', 'chart-column', 'Báo cáo']]],
+    ['Ghi chép', [['#/tong-quan', 'layout-dashboard', 'Tổng quan'], ['#/giao-dich', 'arrow-left-right', 'Giao dịch'], ['#/lich', 'calendar', 'Lịch'], ['#/vi', 'wallet', 'Ví'], ['#/dinh-ky', 'repeat', 'Định kỳ'], ['#/danh-muc', 'tags', 'Danh mục']]],
+    ['Kế hoạch', [['#/ke-hoach', 'flag', 'Kế hoạch'], ['#/ngan-sach', 'gauge', 'Ngân sách'], ['#/muc-tieu', 'target', 'Mục tiêu'], ['#/bao-cao', 'chart-column', 'Báo cáo']]],
     [null, [['#/thong-bao', 'bell', 'Thông báo'], ['#/cai-dat', 'alarm-clock', 'Nhắc nhở'], TK]],
   ],
   QuanTriVien: [[null, [['#/quan-tri', 'shield-check', 'Quản trị'], TK]]],
@@ -54,7 +54,7 @@ const menuCua = () => MENU[PHIEN.vaiTro] ?? MENU.NguoiDung;
 const phang = () => menuCua().flatMap(([, ds]) => ds);
 const trangMacDinh = () => phang()[0][0].slice(2);
 const TRANG = {
-  'tong-quan': ['Tổng quan', trangTongQuan], 'giao-dich': ['Giao dịch', trangGiaoDich], vi: ['Ví của tôi', trangVi], 'dinh-ky': ['Giao dịch định kỳ', trangDinhKy], 'danh-muc': ['Danh mục', trangDanhMuc],
+  'tong-quan': ['Tổng quan', trangTongQuan], 'giao-dich': ['Giao dịch', trangGiaoDich], lich: ['Lịch chi tiêu', trangLich], 'ke-hoach': ['Kế hoạch tháng', trangKeHoach], vi: ['Ví của tôi', trangVi], 'dinh-ky': ['Giao dịch định kỳ', trangDinhKy], 'danh-muc': ['Danh mục', trangDanhMuc],
   'ngan-sach': ['Ngân sách', trangNganSach], 'muc-tieu': ['Mục tiêu tiết kiệm', trangMucTieu], 'bao-cao': ['Báo cáo', trangBaoCao],
   'thong-bao': ['Thông báo', trangThongBao], 'cai-dat': ['Nhắc nhở', trangCaiDat], 'tai-khoan': ['Tài khoản', trangTaiKhoan], 'quan-tri': ['Quản trị hệ thống', trangQuanTri],
   'ho-tro': ['Hỗ trợ người dùng', trangHoTro], 'kiem-toan': ['Thống kê hệ thống', trangKiemToan],

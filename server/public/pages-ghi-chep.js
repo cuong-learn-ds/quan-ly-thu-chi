@@ -1,4 +1,4 @@
-import { api, PHIEN, qs, h, bo, vnd, so, ngayVN, gioVN, homNay, thangNay, tachThang, thongBao, hopThoai, xacNhan, truong, truongAn, chon, chay, ic, nut, nutIcon, tien, tile, rong, dangTai, hienLoi, datHanhDong, datPhuDe, phanDoan, chonThang, congTac, thuCua, mauHopLe, kpi, dai, kpiPhu, demSo, nenChay, baoSuKien, layDuoc } from './core.js';
+import { api, PHIEN, qs, h, bo, vnd, so, ngayVN, gioVN, homNay, thangNay, tachThang, thongBao, hopThoai, xacNhan, truong, truongAn, chon, chay, ic, nut, nutIcon, tien, tile, chip, rong, dangTai, hienLoi, datHanhDong, datPhuDe, phanDoan, chonThang, congTac, thuCua, mauHopLe, kpi, dai, kpiPhu, demSo, nenChay, baoSuKien, layDuoc } from './core.js';
 import { heo, hu, bieuDoThuChi, donut, chuGiai, thanhXep, giayNho, dauMoc, markTien, mauTrangThai, theVi, hoaDon, bangDinh } from './ve.js';
 import { chonKhoang, chonNgay, chonNgayGio } from './lich.js';
 
@@ -131,7 +131,7 @@ export async function trangGiaoDich(root) {
     truongAn('Danh mục', chon([['', 'Tất cả danh mục'], ...dsDm.map((d) => [d.maDanhMuc, `${d.tenDanhMuc} (${d.loai})`])], '', { onchange: (e) => { loc.danhMucId = e.target.value; loadLai(); } })),
     chonKhoang({ nhan: 'Khoảng ngày', doi: ({ tu, den }) => { loc.tu = tu; loc.den = den; loadLai(); } }));
   datPhuDe('');
-  datHanhDong(nut('Quét hóa đơn', { icon: 'scan-line', ghiNhan: true, onclick: () => quetHoaDon(dsVi, dsDm, lamMoiTatCa) }), nut('Thêm giao dịch', { icon: 'plus', loai: 'primary chi-hep', ghiNhan: true, onclick: () => bieuMauGiaoDich(null, dsVi, dsDm, tai) }));
+  datHanhDong(nut('Nhập từ file', { icon: 'upload', ghiNhan: true, onclick: () => nhapTuFile(lamMoiTatCa) }), nut('Quét hóa đơn', { icon: 'scan-line', ghiNhan: true, onclick: () => quetHoaDon(dsVi, dsDm, lamMoiTatCa) }), nut('Thêm giao dịch', { icon: 'plus', loai: 'primary chi-hep', ghiNhan: true, onclick: () => bieuMauGiaoDich(null, dsVi, dsDm, tai) }));
   const phieu = dsVi.length ? phieuGhi() : null;
   root.append(bar, h('div', { class: 'gd-bo' }, ketQua, phieu?.el ?? null));
   if (location.hash.includes('them=1')) {
@@ -232,6 +232,115 @@ export async function trangGiaoDich(root) {
   await tai();
 }
 
+// Nhập giao dịch từ file Excel/CSV: chọn file -> xem trước (lỗi từng dòng, dòng có thể trùng) -> xác nhận nhập
+function nhapTuFile(sauKhiNhap) {
+  const vung = h('div', { class: 'nhap-vung' });
+  const tep = h('input', { type: 'file', accept: '.xlsx,.csv', hidden: true, 'aria-label': 'Chọn file Excel hoặc CSV', onchange: () => { if (tep.files[0]) xemTruoc(tep.files[0]); } });
+  const taiMau = async () => {
+    const b = await chay(() => api('GET', '/giao-dich/nhap/mau', undefined, { blob: true }), dlg); if (!b) return;
+    const a = h('a', { href: URL.createObjectURL(b), download: 'mau-nhap-giao-dich.xlsx' }); document.body.append(a); a.click(); a.remove();
+  };
+  const dlg = hopThoai('Nhập giao dịch từ file', h('div', { class: 'form' },
+    h('p', { class: 'hint' }, 'File .xlsx hoặc .csv có các cột: Ngày, Loại (Thu/Chi), Danh mục, Ví, Số tiền, Ghi chú. File xuất từ trang Báo cáo cũng nhập lại được. Tối đa 1000 dòng, 2 MB.'),
+    h('div', { class: 'toolbar' }, tep, nut('Chọn file', { icon: 'upload', loai: 'primary', onclick: () => tep.click() }), nut('Tải file mẫu', { icon: 'download', onclick: taiMau })),
+    vung, h('div', { class: 'acts' }, h('button', { type: 'button', class: 'btn', onclick: () => dlg.dong() }, 'Đóng'))), { rong: true });
+
+  async function xemTruoc(file) {
+    dlg.loi(''); bo(vung).append(h('p', { class: 'hint' }, 'Đang đọc file…'));
+    const fd = new FormData(); fd.append('tep', file);
+    const r = await chay(() => api('POST', '/giao-dich/nhap/xem-truoc', fd), dlg);
+    bo(vung); if (!r) return;
+    const soTrung = r.hopLe.filter((x) => x.coTheTrung).length;
+    const chonDong = new Set(r.hopLe.filter((x) => !x.coTheTrung).map((x) => x.dong)); // dòng có thể trùng mặc định bỏ chọn
+    const nutNhap = h('button', { type: 'button', class: 'btn primary' });
+    const capNhatNut = () => { nutNhap.textContent = `Nhập ${chonDong.size} giao dịch`; nutNhap.disabled = chonDong.size === 0; };
+    nutNhap.onclick = async () => {
+      dlg.loi(''); nutNhap.disabled = true;
+      const kq = await chay(() => api('POST', '/giao-dich/nhap', { dong: r.hopLe.filter((x) => chonDong.has(x.dong)) }), dlg);
+      if (!kq) { capNhatNut(); return; }
+      dlg.dong(); thongBao(`Đã nhập ${kq.soDaNhap} giao dịch (thu ${vnd(kq.tongThu)}, chi ${vnd(kq.tongChi)})`); sauKhiNhap();
+    };
+    capNhatNut();
+    vung.append(h('div', { class: 'nhap-tom-tat' }, chip('ok', `${r.hopLe.length} dòng hợp lệ`, 'circle-check'),
+      r.loi.length ? chip('bad', `${r.loi.length} dòng lỗi (bỏ qua)`, 'circle-alert') : null,
+      soTrung ? chip('warn', `${soTrung} dòng có thể trùng (đã bỏ chọn)`, 'triangle-alert') : null));
+    if (r.loi.length) vung.append(h('details', { class: 'nhap-loi', open: !r.hopLe.length }, h('summary', {}, 'Xem các dòng lỗi'),
+      h('ul', {}, r.loi.map((x) => h('li', {}, h('b', {}, `Dòng ${x.dong}: `), x.loi)))));
+    if (r.hopLe.length) {
+      const tatCa = h('input', { type: 'checkbox', 'aria-label': 'Chọn tất cả', checked: chonDong.size === r.hopLe.length, onchange: (e) => {
+        r.hopLe.forEach((x) => (e.target.checked ? chonDong.add(x.dong) : chonDong.delete(x.dong)));
+        bang.querySelectorAll('tbody input').forEach((c) => { c.checked = e.target.checked; }); capNhatNut();
+      } });
+      const bang = h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, tatCa), h('th', {}, 'Dòng'), h('th', {}, 'Ngày'), h('th', {}, 'Danh mục'), h('th', {}, 'Ví'), h('th', { class: 'r' }, 'Số tiền'), h('th', {}, 'Ghi chú'))),
+        h('tbody', {}, r.hopLe.map((x) => h('tr', {},
+          h('td', {}, h('input', { type: 'checkbox', checked: chonDong.has(x.dong), 'aria-label': `Chọn dòng ${x.dong}`, onchange: (e) => { if (e.target.checked) chonDong.add(x.dong); else chonDong.delete(x.dong); capNhatNut(); } })),
+          h('td', { class: 'hint' }, x.dong), h('td', { class: 'nowrap' }, `${ngayVN(x.ngayGiaoDich)} ${gioVN(x.ngayGiaoDich)}`),
+          h('td', {}, x.tenDanhMuc, x.coTheTrung ? chip('warn', 'Có thể trùng') : null), h('td', {}, x.tenVi),
+          h('td', { class: 'r nowrap' }, tien(x.loai === 'Thu' ? x.soTien : -x.soTien, { dau: true, lop: x.loai === 'Thu' ? 'income' : 'expense' })), h('td', { class: 'hint' }, x.ghiChu ?? '')))));
+      vung.append(h('div', { class: 'nhap-bang' }, bang), h('p', { class: 'hint' }, 'Các dòng được nhập theo thứ tự ngày, tất cả trong một lần: nếu có dòng lỗi (ví dụ ví không đủ số dư) thì không dòng nào được ghi.'),
+        h('div', { class: 'acts' }, nutNhap));
+    }
+  }
+}
+
+// ================= Lịch chi tiêu =================
+/** Số tiền rút gọn cho ô lịch: 45k, 1,2tr, 2tỷ. */
+const gonLich = (n) => {
+  const r = (x) => x.toFixed(1).replace(/\.0$/, '').replace('.', ',');
+  if (n >= 995e6) return `${r(n / 1e9)}tỷ`;
+  if (n >= 995e3) return `${r(n / 1e6)}tr`;
+  if (n >= 1e3) return `${Math.round(n / 1e3)}k`;
+  return String(n);
+};
+const THU_TRONG_TUAN = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+export async function trangLich(root) {
+  const [dsVi, dsDm] = await Promise.all([api('GET', '/vi'), api('GET', '/danh-muc')]);
+  let thang = thangNay(); let ngayChon = homNay(); let theoNgay = new Map();
+  const tomTat = h('div', { class: 'page-in' }); const luoi = h('div', { class: 'card lich' }); const chiTiet = h('div', { class: 'card flush lich-ct' });
+  datPhuDe('Ô càng đậm, ngày đó chi càng nhiều');
+  datHanhDong(chonThang(thang, (v) => { thang = v; tai(); }));
+  root.append(tomTat, h('div', { class: 'lich-bo-cuc' }, luoi, chiTiet));
+
+  async function tai() {
+    const [t, n] = tachThang(thang);
+    const d = await chay(() => api('GET', `/bao-cao/lich?${qs({ thang: t, nam: n })}`)); if (!d) return;
+    if (ngayChon && ngayChon.slice(0, 7) !== thang) ngayChon = null;
+    bo(tomTat).append(dai(kpi('Tổng thu', tien(d.tongThu, { lop: 'income' })), kpi('Tổng chi', tien(d.tongChi, { lop: 'expense' })),
+      kpi('Chi trung bình/ngày', tien(d.chiTrungBinhNgay), kpiPhu(`${d.soNgayCoChi} ngày có chi tiêu`)),
+      kpi('Ngày chi nhiều nhất', d.chiNhieuNhat ? ngayVN(d.chiNhieuNhat.ngay) : '—', kpiPhu(d.chiNhieuNhat ? vnd(d.chiNhieuNhat.chi) : 'Chưa có chi tiêu'))));
+    theoNgay = new Map(d.ngay.map((x) => [x.ngay, x]));
+    const maxChi = Math.max(1, ...d.ngay.map((x) => x.chi));
+    const lech = (new Date(Date.UTC(n, t - 1, 1)).getUTCDay() + 6) % 7; // thứ Hai là cột đầu
+    const hom = homNay();
+    const o7 = [...THU_TRONG_TUAN.map((x) => h('div', { class: 'lich-thu', 'aria-hidden': 'true' }, x)), ...Array.from({ length: lech }, () => h('div', { 'aria-hidden': 'true' }))];
+    for (let i = 1; i <= d.soNgayTrongThang; i++) {
+      const ngay = `${thang}-${String(i).padStart(2, '0')}`; const x = theoNgay.get(ngay);
+      const nen = x?.chi ? `background:color-mix(in srgb, var(--tomato-f) ${Math.round(25 + (x.chi / maxChi) * 75)}%, var(--card))` : '';
+      o7.push(h('button', { type: 'button', class: `lich-o${ngay === hom ? ' hom-nay' : ''}${ngay === ngayChon ? ' chon' : ''}${ngay > hom ? ' tuong-lai' : ''}`, style: nen,
+        'aria-pressed': ngay === ngayChon ? 'true' : 'false',
+        'aria-label': `Ngày ${i}/${t}${x ? `: thu ${vnd(x.thu)}, chi ${vnd(x.chi)}, ${x.soGiaoDich} giao dịch` : ': không có giao dịch'}`,
+        title: x ? `Thu ${vnd(x.thu)} · Chi ${vnd(x.chi)}` : '',
+        onclick: (e) => { ngayChon = ngay; luoi.querySelectorAll('.lich-o').forEach((b) => { const on = b === e.currentTarget; b.classList.toggle('chon', on); b.setAttribute('aria-pressed', on); }); xemNgay(); } },
+      h('span', { class: 'so' }, i), x?.thu ? h('span', { class: 'thu' }, `+${gonLich(x.thu)}`) : null, x?.chi ? h('span', { class: 'chi' }, `−${gonLich(x.chi)}`) : null));
+    }
+    bo(luoi).append(h('div', { class: 'lich-luoi' }, o7), h('p', { class: 'hint lich-ghi' }, 'Bấm vào một ngày để xem chi tiết và ghi thêm giao dịch.'));
+    xemNgay();
+  }
+
+  async function xemNgay() {
+    bo(chiTiet);
+    if (!ngayChon) { chiTiet.append(h('div', { class: 'card-h' }, h('h2', {}, 'Chi tiết ngày')), rong('calendar', 'Chọn một ngày trên lịch', 'Giao dịch của ngày đó sẽ hiện ở đây.')); return; }
+    const r = await chay(() => api('GET', `/giao-dich?${qs({ tu: ngayChon, den: ngayChon })}`)); if (!r) return;
+    const { thu = 0, chi = 0 } = theoNgay.get(ngayChon) ?? {};
+    chiTiet.append(h('div', { class: 'card-h' }, h('h2', {}, `${thuCua(ngayChon)}, ${ngayVN(ngayChon)}`), h('span', { class: 'lich-tong' }, tien(thu, { dau: true, lop: 'income' }), ' · ', tien(-chi, { dau: true, lop: 'expense' }))),
+      ...(r.muc.length ? r.muc.map((g) => dongGiaoDich(g)) : [rong('inbox', 'Không có giao dịch', 'Ngày này chưa ghi khoản nào.')]),
+      ...(r.tongSo > r.muc.length ? [h('p', { class: 'hint lich-ghi' }, `Hiển thị ${r.muc.length}/${r.tongSo} giao dịch. Xem đủ ở trang Giao dịch.`)] : []),
+      h('div', { class: 'acts lich-them' }, nut('Thêm giao dịch ngày này', { icon: 'plus', loai: 'primary', onclick: () => bieuMauGiaoDich(null, dsVi, dsDm, tai, ngayChon) })));
+  }
+  await tai();
+}
+
 async function xemHoaDon(g) {
   const hd = await chay(() => api('GET', `/giao-dich/${g.maGiaoDich}/hoa-don`));
   if (!hd?.maHoaDon) return;
@@ -248,12 +357,12 @@ async function xemHoaDon(g) {
 const inputNgay = (giaTri) => chonNgayGio(giaTri);
 
 // Hộp thoại thêm / sửa giao dịch (UC 3.5)
-function bieuMauGiaoDich(g, dsVi, dsDm, sauKhiLuu) {
+function bieuMauGiaoDich(g, dsVi, dsDm, sauKhiLuu, ngayMacDinh = null) {
   let loai = g?.loai ?? 'Chi';
   const tien_ = h('input', { type: 'number', min: 1, required: true, value: g?.soTien ?? '', placeholder: '0', inputmode: 'numeric', 'aria-label': 'Số tiền', 'aria-describedby': 'gd-goi-y' });
   const vi = chon(dsVi.map((v) => [v.maVi, `${v.tenVi} (${vnd(v.soDu)})`]), g?.maVi ?? dsVi[0]?.maVi, { 'aria-label': 'Ví' });
   const dmSel = h('select', { 'aria-label': 'Danh mục' });
-  const ngay = inputNgay((g?.ngayGiaoDich ?? `${homNay()}T${giaVN().toISOString().slice(11, 16)}`).slice(0, 16));
+  const ngay = inputNgay((g?.ngayGiaoDich ?? `${ngayMacDinh ?? homNay()}T${giaVN().toISOString().slice(11, 16)}`).slice(0, 16));
   const ghi = h('input', { type: 'text', maxlength: 200, value: g?.ghiChu ?? '', placeholder: 'VD: Cơm trưa với đồng nghiệp' });
   const goiY = h('div', { class: 'hint', id: 'gd-goi-y', 'aria-live': 'polite' });
   const seg = h('div', { class: 'phieu-loai', role: 'group', 'aria-label': 'Loại giao dịch' });

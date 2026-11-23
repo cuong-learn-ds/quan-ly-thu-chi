@@ -962,3 +962,55 @@ tr.trong td { text-align: center; }
   .tbl-wrap { overflow: visible; }
   .chart { overflow: visible; }
 }
+
+/* ===== Lịch chi tiêu ===== */
+.lich-bo-cuc { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+.card.lich { padding: 18px 20px; }
+.lich-luoi { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.lich-thu { text-align: center; font-family: var(--hand); font-size: 18px; color: var(--ink2); padding: 0 0 2px; }
+.lich-o { min-height: 76px; border: 2px solid var(--ink); border-radius: var(--rc); background: var(--card); padding: 6px 7px; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; font-size: 12px; line-height: 1.25; text-align: left; box-shadow: 2px 3px 0 var(--shadow); }
+.lich-o:hover { background: var(--marker); }
+.lich-o .so { font-family: var(--hand); font-size: 19px; line-height: 1.1; }
+.lich-o .thu, .lich-o .chi { font-weight: 700; white-space: nowrap; }
+.lich-o .thu { color: var(--green-ink); } .lich-o .chi { color: var(--tomato-ink); }
+.lich-o.tuong-lai { opacity: .55; }
+.lich-o.hom-nay .so { background: var(--yellow); color: var(--on-yellow); border-radius: var(--rp); padding: 0 8px; }
+.lich-o.chon { outline: 3px solid var(--ink); outline-offset: 1px; }
+.lich-ghi { padding: 10px 4px 0; }
+.lich-ct .lich-tong { font-weight: 700; }
+.lich-them { padding: 14px 22px 18px; justify-content: flex-end; }
+@media (max-width: 1000px) { .lich-bo-cuc { grid-template-columns: 1fr; } }
+@media (max-width: 560px) {
+  .lich-luoi { gap: 3px; } .lich-o { min-height: 54px; padding: 3px 3px; font-size: 10px; box-shadow: none; border-width: 1.5px; } .lich-o .so { font-size: 15px; } .card.lich { padding: 10px 8px; }
+}
+
+/* ===== Nhập giao dịch từ file ===== */
+.nhap-vung { display: grid; gap: 12px; }
+.nhap-tom-tat { display: flex; flex-wrap: wrap; gap: 8px; }
+.nhap-loi { font-size: 13px; } .nhap-loi summary { cursor: pointer; color: var(--tomato-ink); font-weight: 700; } .nhap-loi ul { margin: 6px 0; padding-left: 20px; max-height: 160px; overflow: auto; }
+.nhap-bang { max-height: 320px; overflow: auto; border: 2px solid var(--ink); border-radius: var(--rc); }
+.nhap-bang table { font-size: 13px; width: 100%; } .nhap-bang th { position: sticky; top: 0; background: var(--thead); z-index: 1; } .nhap-bang th, .nhap-bang td { padding: 7px 8px; } .nowrap { white-space: nowrap; }
+
+/* ===== Kế hoạch tài chính tháng ===== */
+.kh-hai { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.kh-h3 { font-size: 22px; margin: 18px 0 6px; }
+.kh-nx { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.kh-nx li { padding: 8px 12px; border-left: 5px solid var(--green); background: var(--note-g); border-radius: 4px 12px 12px 4px; font-size: 14px; }
+.kh-nx li.canh { border-left-color: var(--amber); background: var(--note-y); } .kh-nx li.xau { border-left-color: var(--tomato); background: var(--note-p); }
+.kh-dong { padding: 10px 0; border-bottom: 2px dashed var(--dash); display: grid; gap: 6px; } .kh-dong:last-child { border-bottom: 0; }
+.kh-dong-t { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.kh-lap .toolbar { margin: 0 0 6px; }
+.kh-buoc { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; } .kh-buoc h3 { font-size: 22px; }
+.kh-so { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: var(--rd); background: var(--yellow); color: var(--on-yellow); font-family: var(--hand); font-size: 19px; }
+.kh-bar { display: flex; height: 22px; border: 2px solid var(--ink); border-radius: var(--rp); overflow: hidden; background: var(--card); margin: 8px 0 6px; }
+.kh-bar i { display: block; height: 100%; } .kh-bar i + i { border-left: 2px solid var(--ink); }
+.c-chi { background: var(--tomato-f); } .c-dd { background: var(--sky-f); } .c-con { background: var(--green-f); }
+.kh-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; } .kh-legend i { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--ink); border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.kh-tom { border: 2px dashed var(--ink); border-radius: var(--rc); padding: 12px 16px; background: var(--slip); }
+.kh-pt { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: 15px; }
+.kh-bad { display: flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--tomato-ink); font-weight: 600; font-size: 14px; } .kh-bad .ic { width: 16px; height: 16px; }
+.kh-bang { margin: 8px 0; } .kh-bang input { width: 130px; text-align: right; min-height: 36px; padding: 4px 8px; }
+.kh-bang td { padding: 6px 10px; } .kh-tiet td { background: var(--hl); }
+.kh-cham { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--ink); border-radius: 50%; margin-right: 8px; vertical-align: -1px; }
+@media (max-width: 900px) { .kh-hai { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .kh-bang input { width: 100px; } }

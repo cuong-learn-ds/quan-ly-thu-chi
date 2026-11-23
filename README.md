@@ -21,14 +21,14 @@ Về kỹ thuật, mọi thứ chạy trong một chương trình Node.js:
 
 - **Giao diện** viết bằng HTML, CSS, JavaScript thuần, không dùng framework, không cần build. Trình duyệt gọi API để lấy dữ liệu.
 - **REST API** viết bằng Express. Đăng nhập bằng JWT, mỗi API kiểm tra vai trò trước khi cho làm.
-- **Cơ sở dữ liệu** là SQLite, dùng mô-đun `node:sqlite` có sẵn trong Node, dữ liệu nằm trong một file. Thao tác nào nhiều bước (như chuyển tiền giữa hai ví) đều chạy trong một transaction.
-- **Mô hình miền** gồm 17 lớp, đặt tên đúng như sơ đồ lớp trong tài liệu thiết kế. Các quy tắc nghiệp vụ R1 đến R12 nằm ở tầng này.
+- **Cơ sở dữ liệu** là Microsoft SQL Server (14 bảng; kịch bản tạo bảng và dữ liệu mẫu nằm trong `server/sql/`). Thao tác nào nhiều bước (như chuyển tiền giữa hai ví) đều chạy trong một transaction.
+- **Mô hình miền** gồm 18 lớp, đặt tên đúng như sơ đồ lớp trong tài liệu thiết kế. Các quy tắc nghiệp vụ R1 đến R13 nằm ở tầng này.
 - **Việc chạy ngầm**: một bộ hẹn giờ trong server tự ghi các khoản định kỳ, gửi nhắc nhở và lập phiếu tổng kết cuối tháng.
 - **Quét hóa đơn**: ảnh hóa đơn được gửi cho Gemini để đọc ra số tiền và món hàng. Không có API key thì dùng bản giả trả dữ liệu mẫu.
 
 ## Chạy trên máy
 
-Cần **Node.js 22.13 trở lên**. Không cần cài SQL Server hay MySQL.
+Cần **Node.js 22.13 trở lên**, **Microsoft SQL Server** (bản Express cũng được) đang chạy trên máy với đăng nhập bằng tài khoản Windows, và **ODBC Driver 18 for SQL Server** (driver `msnodesqlv8` kết nối qua ODBC).
 
 ```bash
 git clone https://github.com/cuong-learn-ds/quan-ly-thu-chi.git
@@ -39,7 +39,7 @@ npm start
 
 Trên Windows mà PowerShell chặn lệnh `npm`, gõ `npm.cmd` thay cho `npm`.
 
-Mở **http://localhost:5080**. Lần chạy đầu app tự tạo cơ sở dữ liệu ở `server/data/` và nạp sẵn dữ liệu mẫu để có cái mà xem. Tài khoản có sẵn, mật khẩu đều là `Demo@123`:
+Mở **http://localhost:5080**. Lần chạy đầu app tự tạo cơ sở dữ liệu `QuanLyThuChi` trên SQL Server (chạy `server/sql/01_tao_csdl.sql`) và nạp sẵn dữ liệu mẫu để có cái mà xem. Tài khoản có sẵn, mật khẩu đều là `Demo@123`:
 
 | Vai trò | Email |
 |---|---|
@@ -48,11 +48,11 @@ Mở **http://localhost:5080**. Lần chạy đầu app tự tạo cơ sở dữ
 | Nhân viên hỗ trợ | `hotro@demo.vn` |
 | Kiểm toán viên | `kiemtoan@demo.vn` |
 
-Muốn làm lại từ đầu thì xóa thư mục `server/data` rồi chạy lại.
+Muốn làm lại từ đầu thì xóa cơ sở dữ liệu `QuanLyThuChi` trong SSMS (hoặc `sqlcmd -S localhost -E -C -Q "DROP DATABASE QuanLyThuChi"`) rồi chạy lại `npm start`.
 
 Nếu web báo "Không kết nối được máy chủ", kiểm tra là đang mở đúng `http://localhost:5080`, không phải mở thẳng file `index.html`. Cửa sổ đang chạy `npm start` cũng phải còn mở.
 
-Kiểm thử tự động: `npm test` (46 bài, kiểm các quy tắc R1 đến R12 và các luồng API chính).
+Kiểm thử tự động: `npm test` (60 bài, kiểm các quy tắc R1 đến R13 và các luồng API chính). Mỗi tệp kiểm thử tạo một cơ sở dữ liệu tạm riêng trên SQL Server (`QLTC_KiemThu_...`) và tự xóa khi xong, không đụng cơ sở dữ liệu `QuanLyThuChi`.
 
 ## Triển khai
 
@@ -66,7 +66,10 @@ Bọn mình mới chạy demo trên máy cá nhân. Phần dưới là cách là
 |---|---|---|
 | `PORT` | cổng chạy | `5080` |
 | `JWT_KEY` | khóa ký token đăng nhập, **bắt buộc đổi** khi đưa lên mạng | khóa mẫu |
-| `DB_FILE` | đường dẫn file cơ sở dữ liệu | `server/data/quan-ly-thu-chi.db` |
+| `DB_SERVER` | máy SQL Server (SQL Express đặt tên riêng thì ghi `localhost\SQLEXPRESS`) | `localhost` |
+| `DB_NAME` | tên cơ sở dữ liệu | `QuanLyThuChi` |
+| `DB_DRIVER` | tên driver ODBC | `ODBC Driver 18 for SQL Server` |
+| `DB_CONNECTION` | chuỗi kết nối ODBC đầy đủ, thay cho ba biến trên (`{db}` được thay bằng tên cơ sở dữ liệu) | không có |
 | `GEMINI_API_KEY` | bật quét hóa đơn thật | không có, dùng bản giả |
 | `GEMINI_MODEL` | model Gemini | `gemini-2.5-flash` |
 
@@ -84,7 +87,7 @@ Chạy server trên laptop như bình thường. Trên web bấm nút mã QR ở
 
 ### Đưa lên máy chủ (VPS Linux)
 
-1. Cài Node.js 22.13 trở lên, clone repo, chạy `npm run setup`.
+1. Cài Node.js 22.13 trở lên, SQL Server và ODBC Driver 18, clone repo, chạy `npm run setup`.
 2. Đặt `JWT_KEY` và các biến cần thiết.
 3. Cho server chạy nền và tự bật lại khi máy khởi động lại, ví dụ dùng pm2:
    ```bash
@@ -93,9 +96,9 @@ Chạy server trên laptop như bình thường. Trên web bấm nút mã QR ở
    pm2 save && pm2 startup
    ```
 4. Đặt Nginx phía trước để có tên miền và HTTPS (Let's Encrypt), chuyển tiếp về `http://127.0.0.1:5080`.
-5. Sao lưu định kỳ file trong `server/data/`, vì toàn bộ dữ liệu nằm ở đó.
+5. Sao lưu định kỳ cơ sở dữ liệu `QuanLyThuChi` (SQL Server Backup) và thư mục `server/uploads/` chứa ảnh hóa đơn.
 
-Vì dùng SQLite nên chỉ chạy một server. Muốn chạy nhiều server cùng lúc thì phải đổi sang cơ sở dữ liệu khác.
+Máy chủ phải cài được SQL Server (trên Linux dùng SQL Server for Linux và `DB_CONNECTION` với tài khoản SQL thay cho đăng nhập Windows).
 
 ## Các chức năng
 
@@ -134,6 +137,24 @@ Tiền mặt, tài khoản ngân hàng, ví điện tử. Chuyển tiền giữa
 Mấy khoản tháng nào cũng có như lương, tiền nhà thì khai một lần. Đến ngày, hệ thống tự ghi vào sổ. Ví không đủ tiền thì tháng đó bỏ qua và báo cho mình biết.
 
 ![Giao dịch định kỳ](docs/anh/dinh-ky.png)
+
+### Kế hoạch tài chính tháng
+
+Hệ thống tự điền thu nhập và đề xuất hạn mức từng danh mục theo thói quen chi 3 tháng trước hoặc theo quy tắc 50/30/20; bạn sửa rồi áp dụng một lần để tạo ngân sách cả tháng. Trong tháng, trang theo dõi kế hoạch so với thực tế, dự báo chi cả tháng và nhận xét.
+
+![Kế hoạch tháng](docs/anh/ke-hoach.png)
+
+### Lịch chi tiêu
+
+Lịch tháng hiện tổng thu, chi từng ngày; ô càng đậm thì ngày đó chi càng nhiều. Bấm một ngày để xem giao dịch và thêm giao dịch cho ngày đó.
+
+![Lịch chi tiêu](docs/anh/lich.png)
+
+### Nhập giao dịch từ Excel/CSV
+
+Nút "Nhập từ file" ở trang Giao dịch: tải file mẫu, xem trước, báo lỗi từng dòng, đánh dấu dòng có thể trùng; nhập tất cả trong một lần (một dòng lỗi thì không ghi dòng nào).
+
+![Nhập từ file](docs/anh/nhap-file.png)
 
 ### Danh mục
 
@@ -195,11 +216,13 @@ Thanh điều hướng nằm dưới, nút tròn ở giữa để ghi khoản m�
 
 ```
 server/
-  src/domain/     17 lớp và các kiểu liệt kê, theo sơ đồ lớp
+  src/domain/     18 lớp và các kiểu liệt kê, theo sơ đồ lớp
   src/services/   xử lý nghiệp vụ, chia theo nhóm use case
   src/app.js      REST API, JWT, phân quyền
   src/jobs.js     việc chạy ngầm: định kỳ, nhắc nhở, tổng kết tháng
   src/seed.js     dữ liệu mẫu
+  src/db.js       kết nối SQL Server (worker + transaction)
+  sql/            kịch bản SQL Server: tạo CSDL, dữ liệu mẫu, hàm/view/thủ tục, chạy thử
   public/         giao diện
   test/           kiểm thử
 docs/
@@ -207,6 +230,17 @@ docs/
   thiet-ke/       tài liệu thiết kế
   anh/            ảnh chụp màn hình
 ```
+
+## Script SQL Server (`server/sql/`)
+
+Chạy lần lượt trong SSMS hoặc bằng `sqlcmd -S localhost -E -C -f 65001 -i <tên file>`:
+
+| File | Nội dung |
+|---|---|
+| `01_tao_csdl.sql` | Tạo CSDL `QuanLyThuChi` và 14 bảng (khóa chính, khóa ngoại, CHECK, UNIQUE). Web dùng chính file này ở lần chạy đầu |
+| `02_nhap_lieu.sql` | Dữ liệu mẫu, mỗi bảng ít nhất 9 dòng; chạy lại nhiều lần vẫn cho cùng kết quả. Sinh lại bằng `node sql/xuat-nhap-lieu.mjs` |
+| `03_chuc_nang.sql` | Hàm, view và stored procedure cho các chức năng (đăng ký, thêm/xóa giao dịch, chuyển tiền, ngân sách, nạp mục tiêu, định kỳ, kế hoạch tháng, lịch, tổng kết, khóa tài khoản, thống kê) |
+| `04_chay_thu.sql` | Chạy thử các chức năng; trường hợp thành công thì ROLLBACK để dữ liệu mẫu không đổi. Kết quả lưu ở `04_ket_qua_chay_thu.txt` |
 
 Font chữ: Pangolin cho tiêu đề viết tay, Be Vietnam Pro cho nội dung. Icon lấy từ bộ Lucide.
 
