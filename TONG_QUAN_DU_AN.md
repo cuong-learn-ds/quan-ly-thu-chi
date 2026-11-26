@@ -1,138 +1,132 @@
 # Tổng quan dự án: Quản lý thu chi cá nhân và lập kế hoạch tài chính
 
+Cập nhật ngày 26/11/2026.
+
 ## 1. Dự án là gì
 
-Website giúp người dùng ghi chép thu chi, quản lý nhiều ví, đặt ngân sách theo danh mục, lập mục tiêu tiết kiệm và xem báo cáo. Hệ thống tự cảnh báo khi chi gần hoặc vượt ngân sách, nhắc ghi chép hằng ngày, tổng kết cuối tháng, và cho phép quét ảnh hóa đơn để tạo giao dịch chi. Quản trị viên có thể xem người dùng, khóa/mở khóa tài khoản và quản lý danh mục mặc định.
+Website giúp người dùng ghi chép thu chi, quản lý nhiều ví, đặt ngân sách theo danh mục, lập mục tiêu tiết kiệm và kế hoạch tài chính tháng, xem báo cáo. Hệ thống tự cảnh báo khi chi gần hoặc vượt ngân sách, nhắc ghi chép, tổng kết cuối tháng, quét ảnh hóa đơn và nhập giao dịch từ Excel/CSV.
 
-Đây là đồ án nhóm môn Phân tích thiết kế hướng đối tượng. Mô hình phân tích (use case, sơ đồ lớp) vẽ bằng StarUML là nền tảng; mã nguồn bám theo mô hình đó.
+Đồ án môn Phân tích thiết kế hướng đối tượng. Trọng tâm là mô hình phân tích thiết kế (use case, lớp, tuần tự, hoạt động, dữ liệu); mã nguồn bám theo mô hình đó.
 
 | Mục | Nội dung |
 |---|---|
-| Loại sản phẩm | Website (chạy trên trình duyệt, giao diện co giãn theo kích thước màn hình) |
-| Tác nhân (actor) | 5 tác nhân (danh từ, không dùng động từ): Người dùng (đã đăng ký và đăng nhập), Quản trị viên, Nhân viên hỗ trợ, Kiểm toán viên, Dịch vụ OCR (Gemini, hệ thống bên ngoài). Không có actor "Khách": ai dùng hệ thống cũng phải đăng ký và đăng nhập. Bộ hẹn giờ là thành phần của hệ thống, không phải actor. Ngân hàng (BIDV, MB...) là bên thứ ba được hệ thống hỗ trợ, nằm ở bối cảnh đề tài, không phải actor. "Quản lý danh mục" là use case của Quản trị viên |
-| Công nghệ bản demo | Node.js 24, Express, Microsoft SQL Server (`mssql` + `msnodesqlv8`), JWT, bcryptjs, ExcelJS, giao diện HTML/CSS/JS thuần |
-| Phương án thiết kế ban đầu | ASP.NET Core + SQL Server cho backend (xem mục 4) |
-| Chạy thử | `cd server` → `npm install` → `npm start` → http://localhost:5080 |
-| Tài khoản demo (mật khẩu `Demo@123`) | `demo@demo.vn` (người dùng), `admin@demo.vn` (quản trị viên), `hotro@demo.vn` (nhân viên hỗ trợ), `kiemtoan@demo.vn` (kiểm toán viên) |
+| Sinh viên | Võ Quốc Cường (2424802010303), Trần Minh Hoàng (2424802010347), lớp VCNS.CQ.T102 |
+| Giảng viên hướng dẫn | TS. Dương Thị Kim Chi |
+| Tác nhân | Người dùng, Quản trị viên, Nhân viên hỗ trợ, Kiểm toán viên, Dịch vụ OCR (hệ thống ngoài). Không có “Khách”. Bộ hẹn giờ là thành phần của hệ thống; ngân hàng (BIDV, MB…) là bên thứ ba được hỗ trợ, không phải tác nhân |
+| Công nghệ | Node.js 22.13 trở lên, Express, Microsoft SQL Server (`mssql` + `msnodesqlv8`), JWT, bcryptjs, ExcelJS, HTML/CSS/JS thuần |
+| Chạy thử | `npm run setup` → `npm start` → http://localhost:5080 |
+| Tài khoản demo (mật khẩu `Demo@123`) | `demo@demo.vn`, `admin@demo.vn`, `hotro@demo.vn`, `kiemtoan@demo.vn` |
 
-## 2. Cấu trúc thư mục
+## 2. Hồ sơ nộp
 
-```
-quan-ly-thu-chi-main/
-├── README.md                      hướng dẫn chạy nhanh
-├── TONG_QUAN_DU_AN.md             file này
-├── .gitignore
-├── docs/                          tài liệu
-│   ├── staruml/
-│   │   ├── Cuong_Hoang_QuanLiThuChi.mdj   mô hình StarUML: 23 sơ đồ use case (gồm Hình 5 bổ sung) + sơ đồ lớp Hình 4.1 và Hình 4.2 (lớp bổ sung)
-│   │   └── Hinh_4_1_So_do_lop.png ảnh sơ đồ lớp (bản xuất trước khi chỉnh sửa)
-│   ├── thiet-ke/
-│   │   └── 2026-11-07-quan-ly-thu-chi-design.md   tài liệu thiết kế: mục tiêu, kiến trúc, quy tắc R1–R12, API, màn hình
-│   ├── hinh-bao-cao/                              ảnh dùng trong báo cáo: sơ đồ use case/lớp/tuần tự/hoạt động/ERD, ảnh chụp màn hình
-│   ├── BaoCao_DoAn_QuanLyThuChi.docx   báo cáo đồ án (Word, có PDF cùng tên)
-│   ├── BaoCao_DoAn_QuanLyThuChi.pdf
-│   └── MoTa_DeTai.docx                  mô tả đề tài ngắn để nộp
-├── server/                        ★ MÃ NGUỒN CHẠY ĐƯỢC (backend + giao diện web)
-│   ├── package.json               khai báo gói và lệnh npm start / npm test
-│   ├── src/
-│   │   ├── index.js               điểm khởi động: mở CSDL, nạp dữ liệu, chạy server và bộ hẹn giờ
-│   │   ├── app.js                 dựng REST API (route, xác thực JWT, phân quyền, xử lý lỗi)
-│   │   ├── db.js                  kết nối SQL Server (worker), bọc truy vấn và transaction
-│   │   ├── ha-tang.js             đồng hồ giờ Việt Nam, băm mật khẩu, JWT, OCR (Gemini/bản giả), lưu ảnh
-│   │   ├── jobs.js                bộ hẹn giờ: giao dịch định kỳ, nhắc ghi chép, nhắc mục tiêu, tổng kết cuối tháng
-│   │   ├── seed.js                danh mục mặc định, tài khoản admin, dữ liệu demo
-│   │   ├── domain/index.js        ★ mô hình miền: 17 lớp + enum, chứa quy tắc nghiệp vụ
-│   │   └── services/index.js      ★ nghiệp vụ theo nhóm use case (tài khoản, ví, giao dịch, ngân sách…)
-│   ├── public/                    giao diện web (không cần build)
-│   │   ├── index.html             trang gốc
-│   │   ├── styles.css             giao diện sổ tay vẽ tay, hỗ trợ màn hình hẹp và chế độ tối
-│   │   ├── ve.js                  hình vẽ tay (heo đất, hũ ngân sách, bảng dính, gạch chân)
-│   │   ├── lich.js                chọn ngày và khoảng ngày (lịch)
-│   │   ├── fonts/, icons.svg      phông chữ Be Vietnam Pro, Pangolin và bộ biểu tượng (kèm giấy phép)
-│   │   ├── core.js                gọi API, dựng DOM, hộp thoại, biểu đồ tròn và biểu đồ cột SVG
-│   │   ├── app.js                 khung trang, điều hướng, đăng nhập/đăng ký
-│   │   ├── pages-ghi-chep.js      Tổng quan (biểu đồ), Giao dịch, Quét hóa đơn, Ví (chuyển tiền), Giao dịch định kỳ, Danh mục
-│   │   └── pages-ke-hoach.js      Ngân sách, Mục tiêu, Báo cáo, Thông báo, Nhắc nhở, Tài khoản, Quản trị
-│   └── test/
-│       ├── domain.test.js         kiểm thử quy tắc nghiệp vụ ở tầng domain
-│       ├── api.test.js            kiểm thử các luồng API đầu-cuối
-│       ├── vai-tro.test.js        kiểm thử phân quyền 4 vai trò đăng nhập
-│       └── tinh-nang-moi.test.js  kiểm thử chuyển tiền giữa ví và giao dịch định kỳ
-```
+| Yêu cầu | Tệp |
+|---|---|
+| Slide báo cáo | `docs/Slide_BaoCao_QuanLyThuChi_rut_gon.pptx` (18 slide, dùng khi trình bày, có lời thuyết trình trong phần ghi chú) |
+| Quyển báo cáo Word | `docs/BaoCao_DoAn_QuanLyThuChi.docx` và bản `.pdf` (125 trang) |
+| Demo CSDL | `server/sql/` (tệp `05_demo_thuyet_trinh.sql` dùng khi trình bày) |
+| Demo giao diện | `server/` (chạy `npm start`) |
+| Mô hình | `docs/staruml/Cuong_Hoang_QuanLiThuChi.mdj` |
+| Khác | `docs/SoDo_Mapping_UC.xlsx`, `docs/MoTa_DeTai.docx` |
 
-Thư mục sinh ra khi chạy (đã nằm trong `.gitignore`): `server/node_modules/` (gói cài đặt), `server/uploads/` (ảnh hóa đơn đã tải lên).
+## 3. Mô hình phân tích thiết kế
 
-## 3. Mỗi thư mục dùng vào việc gì
-
-| Thư mục / file | Dùng để | Ai dùng, khi nào |
+| Loại sơ đồ | Số lượng | Ghi chú |
 |---|---|---|
-| `docs/staruml/` | Lưu mô hình phân tích thiết kế: sơ đồ use case 3 mức và sơ đồ lớp. Mở bằng phần mềm StarUML | Đưa hình vào báo cáo; đối chiếu khi sửa mã |
-| `docs/thiet-ke/` | Tài liệu thiết kế: phạm vi, kiến trúc, 12 quy tắc nghiệp vụ, danh sách API, danh sách màn hình, dữ liệu demo, kế hoạch kiểm thử | Làm căn cứ viết báo cáo; thống nhất trong nhóm |
-| `docs/hinh-bao-cao/` | Ảnh PNG của mọi sơ đồ (vẽ lại từ file StarUML) và ảnh chụp màn hình demo | Chèn vào báo cáo Word; dùng khi làm slide |
-| `docs/BaoCao_DoAn_QuanLyThuChi.docx` | Báo cáo đồ án (bìa, phiếu đánh giá, mục lục tự động, Chương 1–5, tài liệu tham khảo; không có phụ lục) | Nộp cho giảng viên; cần điền họ tên, MSSV, lớp ở bìa |
-| `server/src/domain/` | Chứa các lớp thực thể đúng như sơ đồ lớp và quy tắc nghiệp vụ (không phụ thuộc CSDL hay HTTP) | Người code backend; là phần "khớp 1–1 với sơ đồ lớp" |
-| `server/src/services/` | Điều phối: tải dữ liệu → gọi domain → lưu trong một transaction → tạo thông báo | Người code backend; mỗi nhóm hàm ứng với một nhóm use case |
-| `server/src/app.js` | Khai báo các đường dẫn `/api/...`, kiểm tra đăng nhập và quyền | Người code backend/frontend khi cần xem API |
-| `server/src/db.js`, `seed.js` | Cấu trúc bảng và dữ liệu mẫu để demo | Khi demo hoặc làm lại dữ liệu |
-| `server/src/jobs.js` | Các tác vụ chạy theo giờ (thành phần "Bộ hẹn giờ" của hệ thống, không phải actor) | Chạy tự động trong lúc server hoạt động |
-| `server/public/` | Giao diện người dùng trên trình duyệt | Người code frontend; chụp ảnh màn hình đưa vào báo cáo |
-| `server/test/` | Kiểm thử tự động; chạy bằng `npm test` | Trước khi demo/nộp để chắc không hỏng quy tắc nghiệp vụ |
+| Use case | 24 | 1 tổng quát, 9 phân rã, 12 chi tiết, 2 bổ sung. Tệp StarUML có 23 sơ đồ; sơ đồ “lịch, nhập file” vẽ riêng. “Lập kế hoạch tháng” chưa có trên sơ đồ use case |
+| Lớp | 2 | 15 lớp + 5 enum (sơ đồ chính), thêm `ChuyenTien`, `GiaoDichDinhKy`, `KeHoachThang`: tổng 18 lớp, 6 enum |
+| Tuần tự | 11 | Giao diện → REST API → Service → Domain → CSDL |
+| Hoạt động | 10 | Chưa có sơ đồ cho lập kế hoạch tháng |
+| Dữ liệu (ERD) | 1 | 14 bảng |
+| Kiến trúc | 1 | `docs/hinh-bao-cao/kien_truc.png` |
 
-## 4. Công nghệ
+Ảnh sơ đồ nằm trong `docs/hinh-bao-cao/`.
 
-Backend Node.js (Express) + Microsoft SQL Server (kịch bản trong `server/sql/`), giao diện website HTML/CSS/JS thuần. Mô hình miền (17 lớp), quy tắc R1–R12 và danh sách API bám theo thiết kế.
-
-## 5. Luồng hoạt động tổng thể
+## 4. Cấu trúc thư mục
 
 ```
-Trình duyệt (server/public) ──HTTP/JSON + JWT──▶ app.js (route, phân quyền)
-                                                     │
-                                                     ▼
-                                           services/ (nghiệp vụ, transaction)
-                                                     │
-                                       ┌─────────────┴─────────────┐
-                                       ▼                           ▼
-                               domain/ (quy tắc)          db.js → SQL Server (QuanLyThuChi)
-                                       ▲
-              jobs.js (bộ hẹn giờ) ────┘   ha-tang.js: OCR Gemini, ảnh hóa đơn, JWT, BCrypt
+quan-ly-thu-chi/
+├── README.md                hướng dẫn chạy và giới thiệu chức năng
+├── TONG_QUAN_DU_AN.md       file này
+├── docs/
+│   ├── Slide_BaoCao_QuanLyThuChi_rut_gon.pptx
+│   ├── BaoCao_DoAn_QuanLyThuChi.docx / .pdf
+│   ├── MoTa_DeTai.docx, SoDo_Mapping_UC.xlsx
+│   ├── staruml/             mô hình StarUML
+│   ├── thiet-ke/            tài liệu thiết kế ban đầu
+│   ├── hinh-bao-cao/        ảnh sơ đồ dùng trong báo cáo và slide
+│   └── anh/                 ảnh chụp giao diện
+└── server/
+    ├── src/
+    │   ├── index.js         khởi động: mở CSDL, nạp dữ liệu, chạy server và bộ hẹn giờ
+    │   ├── app.js           REST API, JWT, phân quyền
+    │   ├── services/        nghiệp vụ theo nhóm use case, transaction
+    │   ├── domain/          18 lớp, 6 enum, quy tắc R1–R13
+    │   ├── db.js, db-worker.js   kết nối SQL Server
+    │   ├── ha-tang.js       giờ Việt Nam, BCrypt, JWT, OCR, lưu ảnh
+    │   ├── jobs.js          việc chạy theo giờ
+    │   ├── nhap-giao-dich.js     đọc tệp Excel/CSV
+    │   └── seed.js          dữ liệu mẫu
+    ├── sql/                 01 tạo CSDL, 02 dữ liệu, 03 hàm/view/thủ tục, 04 chạy thử, 05 demo
+    ├── public/              giao diện web
+    │   ├── app.js, core.js, pages-ghi-chep.js, pages-ke-hoach.js
+    │   ├── ve.js            hình vẽ tay (heo đất, hũ, biểu đồ)
+    │   ├── lich.js          chọn ngày
+    │   ├── styles.css       giao diện sổ tay, sáng/tối, điện thoại
+    │   └── dong.js, dong.css     chuyển động “cuốn sổ sống”
+    └── test/                60 kiểm thử tự động
 ```
 
-## 6. Các quy tắc nghiệp vụ chính (tóm tắt)
+## 5. Luồng hoạt động
+
+```
+Trình duyệt (public) ──HTTP/JSON + JWT──▶ app.js ──▶ services/ ──▶ domain/ (quy tắc)
+                                                        │
+                      jobs.js (bộ hẹn giờ) ─────────────┤──▶ db.js ──▶ SQL Server (QuanLyThuChi)
+                                                        └──▶ ha-tang.js ──▶ Gemini OCR / bản giả
+```
+
+## 6. Quy tắc nghiệp vụ
 
 | Mã | Quy tắc |
 |---|---|
 | R1 | Số tiền giao dịch, hạn mức, mục tiêu phải lớn hơn 0 |
-| R2 | Chi tiền không được vượt số dư ví ("Số dư ví không đủ") |
-| R3 | Sửa/xóa giao dịch hoàn tác ảnh hưởng cũ lên ví rồi áp giá trị mới |
-| R4 | Tên ví không trùng; ví còn giao dịch thì không xóa |
+| R2 | Chi tiền không được vượt số dư ví |
+| R3 | Sửa/xóa giao dịch hoàn tác ảnh hưởng cũ lên ví |
+| R4 | Tên ví không trùng; ví còn dữ liệu thì không xóa |
 | R5 | Không sửa/xóa danh mục mặc định; xóa danh mục đang dùng phải chuyển sang danh mục cùng loại |
-| R6 | Mỗi (danh mục, tháng) một ngân sách; cảnh báo khi đạt ngưỡng và khi vượt, mỗi mức một lần |
-| R7 | Nạp mục tiêu: trừ ví, cộng mục tiêu, tạo giao dịch chi "Tiết kiệm"; thông báo hoàn thành một lần |
-| R8 | Tài khoản bị khóa không đăng nhập được, token cũ bị từ chối; admin không tự khóa mình |
-| R9 | Tổng kết tháng chạy nhiều lần vẫn chỉ có một báo cáo và một thông báo |
-| R10 | Người dùng chỉ truy cập dữ liệu của mình (dữ liệu người khác trả 404) |
+| R6 | Mỗi (danh mục, tháng) một ngân sách; cảnh báo mỗi mức một lần |
+| R7 | Nạp mục tiêu: trừ ví, cộng mục tiêu, tạo giao dịch chi “Tiết kiệm” |
+| R8 | Tài khoản bị khóa không đăng nhập được; quản trị viên không tự khóa mình |
+| R9 | Tổng kết tháng chạy lại không tạo trùng |
+| R10 | Người dùng chỉ truy cập dữ liệu của mình |
+| R11 | Chuyển tiền giữa hai ví khác nhau, không tính là thu chi |
+| R12 | Giao dịch định kỳ ngày 1–28, mỗi tháng một lần; thiếu số dư thì bỏ qua và báo |
+| R13 | Kế hoạch tháng: thu nhập lớn hơn 0; áp dụng một lần tạo ngân sách cả tháng |
 
-## 7. Lệnh thường dùng
+## 7. Cơ sở dữ liệu
+
+14 bảng, 14 khóa chính, 21 khóa ngoại, 7 UNIQUE, 27 CHECK, 19 DEFAULT, 1 hàm, 3 view, 21 thủ tục. Web dùng tệp `01` để tạo bảng; nghiệp vụ của web chạy ở tầng service, thủ tục trong tệp `03` là bản cài đặt nghiệp vụ trong CSDL để demo và đối chiếu.
+
+### Điểm cần cải thiện đã rà ra (chưa sửa)
+
+1. Xóa danh mục đang có lịch định kỳ bị lỗi khóa ngoại (đã tái hiện lỗi 547 với `sp_XoaDanhMuc`; tầng service của web cũng không xử lý bảng `GiaoDichDinhKy`).
+2. Thông báo khóa tài khoản dùng loại `TongKetThang`.
+3. Báo cáo lọc bằng `YEAR()`, `MONTH()` nên không tận dụng chỉ mục theo ngày.
+4. `vw_TienDoNganSach` gọi `fn_SoDaChi` bốn lần mỗi dòng.
+5. `sp_ThemVi`, `sp_LapNganSach` kiểm tra rồi mới ghi, không khóa (ràng buộc UNIQUE vẫn chặn đúng).
+
+## 8. Giao diện
+
+Phong cách sổ tay vẽ tay, hỗ trợ sáng/tối và điện thoại. Chuyển động (`dong.js`, `dong.css`): lật trang khi đổi mục, khối nội dung hiện dần khi cuộn, số tiền đếm lên, bìa sổ có chiều sâu theo chuột, bấm heo để bỏ xu, bìa sổ mở ra khi đăng nhập. Máy bật “giảm chuyển động” thì tắt hết.
+
+Bản thiết kế lại (hai hướng “Sổ cái” và “Tài chính”) nằm ở `design-mau/index.html`, **chờ nhóm quyết định**, chưa áp dụng.
+
+## 9. Lệnh thường dùng
 
 ```bash
-cd server
-npm install      # cài gói lần đầu
+npm run setup    # cài gói lần đầu
 npm start        # chạy website tại http://localhost:5080
 npm test         # chạy 60 kiểm thử tự động
 ```
 
-Xóa cơ sở dữ liệu `QuanLyThuChi` trong SQL Server để làm lại dữ liệu từ đầu. Đặt biến môi trường `GEMINI_API_KEY` để quét hóa đơn bằng Gemini thật; nếu không đặt, hệ thống dùng bản giả trả dữ liệu mẫu.
-
-## Chức năng bổ sung (cập nhật 2026-11-10)
-
-| Chức năng | Mô tả ngắn | Nơi cài đặt |
-|---|---|---|
-| Chuyển tiền giữa các ví | Trừ ví nguồn, cộng ví đích, ghi `ChuyenTien`; không tính vào thu chi; quy tắc R11 | `ChuyenTien` (domain), `S.chuyenTien`, `POST/GET /api/chuyen-tien`, trang Ví |
-| Giao dịch định kỳ | Lịch thu/chi hằng tháng, ngày 1–28; bộ hẹn giờ tạo đúng một giao dịch/tháng; thiếu số dư thì bỏ qua và báo; quy tắc R12 | `GiaoDichDinhKy` (domain), `S.dinhKy`, `/api/giao-dich-dinh-ky`, `jobs.js`, trang Định kỳ |
-| Dashboard Tổng quan | So sánh thu/chi với tháng trước, nút thao tác nhanh, số dư theo ví, mục tiêu tiết kiệm, biểu đồ cột 6 tháng (dùng lại các API có sẵn, không thêm API mới) | `trangTongQuan` trong `pages-ghi-chep.js`, `bieuDoCot` trong `core.js` |
-| Nhận xét nhanh và dự báo chi trên Tổng quan | Tính ở trình duyệt từ dữ liệu có sẵn: dự báo chi cả tháng, chi vượt thu, ngân sách vượt, mục tiêu chậm | `trangTongQuan` |
-| Giao diện điện thoại và mã QR | CSS cho màn hình nhỏ, nút + nổi, manifest để thêm vào màn hình chính; API công khai `GET /api/ket-noi-dien-thoai` trả địa chỉ LAN của máy chủ kèm mã QR (SVG, thư viện `qrcode`) | `app.js` (hienQR), `styles.css`, `manifest.webmanifest`, `app.js` trong `src` |
-| Giao diện sáng/tối | Màu chủ đạo xanh lá (#2f9e44); nút đổi chế độ, lưu trong trình duyệt, mặc định theo hệ thống | `CHE_DO` trong `core.js`, `styles.css` |
-| Thống kê quản trị mở rộng | Thêm `soNguoiMoiThangNay`, hiển thị tổng giao dịch và tỷ lệ hoạt động | `S.quanTri.thongKe`, `tabThongKe` |
-
-Báo cáo `BaoCao_DoAn_QuanLyThuChi` khớp với bản hiện tại: SQL Server (14 bảng, kịch bản trong `server/sql/`), quy tắc R1–R13, 60 kiểm thử, ảnh chụp giao diện sổ tay (Chương 3).
+Xóa cơ sở dữ liệu `QuanLyThuChi` để làm lại dữ liệu từ đầu. Đặt `GEMINI_API_KEY` để quét hóa đơn bằng Gemini thật; nếu không đặt, hệ thống dùng bản giả trả dữ liệu mẫu.

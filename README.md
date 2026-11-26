@@ -56,6 +56,48 @@ Nếu web báo "Không kết nối được máy chủ", kiểm tra là đang m�
 
 Kiểm thử tự động: `npm test` (60 bài, kiểm các quy tắc R1 đến R13 và các luồng API chính). Mỗi tệp kiểm thử tạo một cơ sở dữ liệu tạm riêng trên SQL Server (`QLTC_KiemThu_...`) và tự xóa khi xong, không đụng cơ sở dữ liệu `QuanLyThuChi`.
 
+### Gặp lỗi khi chạy
+
+| Hiện tượng | Cách xử lý |
+|---|---|
+| `npm start` báo lỗi kết nối cơ sở dữ liệu | Kiểm tra dịch vụ SQL Server đang chạy và đã cài ODBC Driver 18. Nếu dùng SQL Express thì đặt `DB_SERVER` là `localhost\SQLEXPRESS` (xem bảng biến môi trường bên dưới) |
+| Cổng 5080 đang bị chương trình khác dùng | Đổi cổng, ví dụ PowerShell: `$env:PORT = "5081"; npm.cmd start`, rồi mở `http://localhost:5081` |
+| PowerShell không cho chạy `npm` | Gõ `npm.cmd` thay cho `npm` |
+| Vừa cập nhật mã mà giao diện vẫn như cũ | Tải lại bỏ qua bộ nhớ đệm bằng `Ctrl + F5` |
+| Muốn dữ liệu mẫu như lúc đầu | Xóa cơ sở dữ liệu `QuanLyThuChi` rồi chạy lại `npm start` |
+
+## Hướng dẫn sử dụng nhanh
+
+Mở web, đăng nhập bằng một tài khoản ở bảng trên rồi bấm **Mở sổ**. Người mới thì bấm **Đăng ký**, tạo tài khoản và đăng nhập lại. Trên điện thoại, ba mục chính và nút **+** nằm ở thanh dưới, các mục còn lại nằm trong **Khác**.
+
+### Người dùng (`demo@demo.vn`)
+
+| Muốn làm | Cách làm |
+|---|---|
+| Ghi một khoản thu hoặc chi | Bấm **Ghi khoản mới**, chọn loại, nhập số tiền, chọn danh mục và ví, rồi lưu |
+| Sửa hoặc xóa giao dịch | Vào **Giao dịch**, dùng nút bút chì hoặc thùng rác trên dòng đó |
+| Tìm giao dịch | Vào **Giao dịch**, gõ vào ô tìm hoặc lọc theo loại, ví, danh mục, khoảng ngày |
+| Quét hóa đơn | Vào **Giao dịch**, bấm **Quét hóa đơn**, chọn hoặc dán ảnh JPG, PNG (tối đa 5 MB), xem lại rồi lưu |
+| Nhập nhiều giao dịch từ file | Vào **Giao dịch**, bấm **Nhập từ file**, **Tải file mẫu**, điền xong chọn file, xem trước rồi nhập |
+| Xem chi tiêu theo ngày | Vào **Lịch**, bấm một ngày; có nút **Thêm giao dịch ngày này** |
+| Thêm ví, chuyển tiền giữa ví | Vào **Ví**, bấm **Thêm ví** hoặc **Chuyển tiền** |
+| Khai khoản lặp hằng tháng | Vào **Định kỳ**, bấm **Thêm định kỳ**, chọn ngày từ 1 đến 28 |
+| Thêm danh mục riêng | Vào **Danh mục**, bấm **Thêm danh mục** |
+| Lập kế hoạch cả tháng | Vào **Kế hoạch**, kiểm tra thu nhập, chọn cách phân bổ, sửa hạn mức rồi bấm **Áp dụng kế hoạch** |
+| Đặt ngân sách một danh mục | Vào **Ngân sách**, bấm **Thêm hũ mới** |
+| Tiết kiệm cho một mục tiêu | Vào **Mục tiêu**, bấm **Nuôi heo mới**, sau đó nạp tiền từ ví |
+| Xem và in báo cáo | Vào **Báo cáo**, chọn khoảng thời gian, bấm **Xuất Excel** hoặc **In báo cáo** |
+| Đọc thông báo, đặt giờ nhắc | Vào **Thông báo** hoặc **Nhắc nhở** |
+| Đổi mật khẩu, đổi sáng tối | Vào **Tài khoản** |
+
+### Các vai trò khác
+
+| Tài khoản | Làm được gì |
+|---|---|
+| `admin@demo.vn` | Xem người dùng, **Khóa** (nhập lý do) hoặc **Mở khóa**; quản lý danh mục mặc định; xem thống kê; **Chạy tổng kết** tháng |
+| `hotro@demo.vn` | Tìm người dùng và **Gửi thông báo** hỗ trợ |
+| `kiemtoan@demo.vn` | Chỉ xem thống kê và danh sách người dùng |
+
 ## Triển khai
 
 Bọn mình mới chạy demo trên máy cá nhân. Phần dưới là cách làm gợi ý nếu muốn đưa lên cho người khác dùng.
@@ -118,7 +160,7 @@ Vào là thấy ngay tháng này thu bao nhiêu, chi bao nhiêu, giữ lại bao
 
 ### Giao dịch
 
-Trình bày như một trang sổ có lề đỏ: ngày ghi ở lề, cuối mỗi ngày có dòng cộng. Tìm theo ghi chú, lọc theo loại, ví, danh mục, khoảng ngày, xuất ra Excel. Màn hình rộng có sẵn ô ghi nhanh bên phải.
+Trình bày như một trang sổ có lề đỏ: ngày ghi ở lề, cuối mỗi ngày có dòng cộng. Tìm theo ghi chú, lọc theo loại, ví, danh mục, khoảng ngày (xuất Excel nằm ở trang Báo cáo). Màn hình rộng có sẵn ô ghi nhanh bên phải.
 
 ![Giao dịch](docs/anh/giao-dich.png)
 
@@ -208,6 +250,10 @@ Nền như giấy than, chữ màu kem, các màu vẫn đủ tương phản đ�
 
 ![Giao diện tối](docs/anh/giao-dien-toi.png)
 
+### Chuyển động
+
+Giao diện chuyển động như một cuốn sổ: đổi mục thì trang lật, các khối đặt xuống giấy khi cuộn tới, số tiền đếm lên, thanh tiến độ và biểu đồ được vẽ dần. Ở trang đăng nhập, hình vẽ trôi theo chuột, bấm vào heo đất để bỏ thêm một đồng xu, đăng nhập xong thì bìa sổ mở ra. Máy bật chế độ "giảm chuyển động" thì web không chạy các hiệu ứng này. Phần này nằm trong `server/public/dong.js` và `dong.css`.
+
 ### Trên điện thoại
 
 Thanh điều hướng nằm dưới, nút tròn ở giữa để ghi khoản mới, hộp thoại trượt lên từ dưới.
@@ -225,11 +271,14 @@ server/
   src/seed.js     dữ liệu mẫu
   src/db.js       kết nối SQL Server (worker + transaction)
   sql/            kịch bản SQL Server: tạo CSDL, dữ liệu mẫu, hàm/view/thủ tục, chạy thử
-  public/         giao diện
+  public/         giao diện (dong.js, dong.css: chuyển động)
   test/           kiểm thử
 docs/
+  BaoCao_DoAn_QuanLyThuChi.docx, .pdf        quyển báo cáo
+  Slide_BaoCao_QuanLyThuChi_rut_gon.pptx     slide thuyết trình
   staruml/        sơ đồ use case, sơ đồ lớp
   thiet-ke/       tài liệu thiết kế
+  hinh-bao-cao/   ảnh sơ đồ
   anh/            ảnh chụp màn hình
 ```
 
@@ -243,11 +292,13 @@ Chạy lần lượt trong SSMS hoặc bằng `sqlcmd -S localhost -E -C -f 6500
 | `02_nhap_lieu.sql` | Dữ liệu mẫu, mỗi bảng ít nhất 9 dòng; chạy lại nhiều lần vẫn cho cùng kết quả. Sinh lại bằng `node sql/xuat-nhap-lieu.mjs` |
 | `03_chuc_nang.sql` | Hàm, view và stored procedure cho các chức năng (đăng ký, thêm/xóa giao dịch, chuyển tiền, ngân sách, nạp mục tiêu, định kỳ, kế hoạch tháng, lịch, tổng kết, khóa tài khoản, thống kê) |
 | `04_chay_thu.sql` | Chạy thử các chức năng; trường hợp thành công thì ROLLBACK để dữ liệu mẫu không đổi. Kết quả lưu ở `04_ket_qua_chay_thu.txt` |
+| `05_demo_thuyet_trinh.sql` | Truy vấn dùng khi thuyết trình, chia 10 khối chạy riêng trong SSMS (khóa, ràng buộc, view, thủ tục, transaction); khối có ghi đều ROLLBACK |
 
 Font chữ: Pangolin cho tiêu đề viết tay, Be Vietnam Pro cho nội dung. Icon lấy từ bộ Lucide.
 
 ## Còn thiếu gì
 
+- Xóa danh mục đang có lịch giao dịch định kỳ sẽ báo lỗi. Cần đổi danh mục của lịch (hoặc xóa lịch) trước.
 - Mới thử kỹ trên Chrome. Safari và Firefox chưa test.
 - Quét hóa đơn thật cần API key Gemini, và đọc đúng hay không còn tùy ảnh chụp.
 - Chưa thử triển khai thật trên VPS. Phần triển khai ở trên mới là hướng dẫn.

@@ -1,0 +1,103 @@
+/* Lớp chuyển động "cuốn sổ sống" (đi cùng dong.js). Chỉ đổi translate/rotate/scale/opacity/clip-path nên không
+   đè transform gốc (thẻ nghiêng, hover) và không làm xô bố cục. Mọi animation dùng fill "backwards": chạy xong
+   phần tử trở về đúng kiểu trong styles.css. Máy bật "giảm chuyển động": styles.css đã tắt toàn bộ animation. */
+:root { --ease: cubic-bezier(.2, .7, .2, 1); --nhun: cubic-bezier(.3, 1.5, .5, 1); }
+
+/* ===== 1. Lật trang khi đổi mục ===== */
+@keyframes mk-lat-toi { from { opacity: 0; transform: perspective(1600px) translateX(36px) rotateY(-7deg); } }
+@keyframes mk-lat-lui { from { opacity: 0; transform: perspective(1600px) translateX(-36px) rotateY(7deg); } }
+.main-in.mk-lat-toi > .top { transform-origin: 0 50%; animation: mk-lat-toi 420ms var(--ease) backwards; }
+.main-in.mk-lat-lui > .top { transform-origin: 100% 50%; animation: mk-lat-lui 420ms var(--ease) backwards; }
+@keyframes mk-viet { from { clip-path: inset(-8px 100% -14px 0); } to { clip-path: inset(-8px -8px -14px 0); } }
+.mk-lat .top h1 { animation: mk-viet 620ms var(--ease) 80ms backwards; }
+
+/* ===== 2. Khối nội dung đặt xuống giấy khi cuộn tới ===== */
+.mk-an { opacity: 0; }
+.mk-an *, .mk-an *::before, .mk-an *::after { animation-play-state: paused !important; } /* hũ, heo, cột chờ đến khi nhìn thấy */
+@keyframes mk-dat { from { opacity: 0; translate: 0 34px; rotate: var(--mk-nghieng, -.7deg); scale: .985; } }
+.mk-vao { animation: mk-dat 560ms var(--ease) var(--mk-tre, 0ms) backwards; }
+
+/* Dòng, ô con hiện lần lượt */
+@keyframes mk-len { from { opacity: 0; translate: 0 14px; } }
+.mk-vao :is(.the-vi, .kpi, .cg > li, tbody > tr, .txr:not(.an-moi), .gd-dong, .nhom) { animation: mk-len 420ms var(--ease) calc(var(--mk-tre, 0ms) + 120ms + var(--mk-i, 0) * 45ms) backwards; }
+@keyframes mk-nay { from { opacity: 0; scale: .6; } }
+.mk-vao .lich-o { animation: mk-nay 360ms var(--nhun) calc(var(--mk-tre, 0ms) + var(--mk-i, 0) * 28ms) backwards; }
+
+/* Thanh tiến độ đổ đầy, biểu đồ được vẽ ra */
+@keyframes mk-day { from { scale: 0 1; } }
+.mk-vao :is(.bar i, .kh-bar i) { transform-origin: 0 50%; animation: mk-day 900ms var(--ease) calc(var(--mk-tre, 0ms) + 260ms) backwards; }
+@keyframes mk-banh { from { stroke-dasharray: 0 440; } }
+.mk-vao .donut circle[stroke-dasharray] { animation: mk-banh 900ms var(--ease) calc(var(--mk-tre, 0ms) + 200ms) backwards; }
+@keyframes mk-quet { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+.mk-vao :is(.xep, .ke-go, .ns-thanh) { animation: mk-quet 800ms var(--ease) calc(var(--mk-tre, 0ms) + 220ms) backwards; }
+
+/* ===== 3. Phản hồi khi rê chuột, bấm ===== */
+.btn, .tab-add { transition: translate 160ms var(--nhun), scale 120ms var(--ease), box-shadow 120ms, background-color 120ms; }
+.btn:active:not(:disabled), .tab-add:active { scale: .95; }
+@media (hover: hover) {
+  .btn:not(.ghost):hover:not(:disabled) { translate: 0 -2px; }
+  .gcard, .hu-the { transition: translate 220ms var(--nhun), rotate 220ms var(--nhun); }
+  .gcard:hover, .hu-the:hover { translate: 0 -5px; rotate: -.5deg; }
+  .nav:hover .ic { animation: mk-lac 500ms ease-in-out; }
+  .brand:hover .heo-mini { animation: mk-lac 600ms ease-in-out; }
+  .txr:hover .tile, .gd-dong:hover .tile { animation: mk-lac 500ms ease-in-out; }
+}
+@keyframes mk-lac { 25% { rotate: -14deg; } 55% { rotate: 10deg; } 80% { rotate: -4deg; } }
+
+/* Mục đang mở: vệt bút dạ quét qua */
+.nav[aria-current="page"]::before { animation: mk-quet 480ms var(--ease) 120ms backwards; }
+/* Chuông rung hai lần khi còn thông báo chưa đọc */
+@keyframes mk-chuong { 0%, 60%, 100% { rotate: 0deg; } 8% { rotate: 18deg; } 18% { rotate: -15deg; } 28% { rotate: 10deg; } 38% { rotate: -6deg; } 48% { rotate: 2deg; } }
+.bell:has(b:not([hidden])) .ic { transform-origin: 50% 0; animation: mk-chuong 1.8s ease-in-out 900ms 2; }
+
+/* Hộp thoại bật ra (máy tính; điện thoại giữ kiểu tờ giấy kéo lên) */
+@keyframes mk-bat { from { opacity: 0; scale: .9; translate: 0 22px; rotate: -1.4deg; } }
+@media (min-width: 900px) { .modal { animation: mk-bat 380ms var(--nhun) backwards; } }
+@keyframes mk-bob { 50% { translate: 0 -7px; } }
+.empty > :first-child { animation: mk-bob 2.4s ease-in-out 3; }
+
+/* ===== 4. Bìa sổ (đăng nhập, đăng ký) ===== */
+/* Các lớp trôi theo chuột với biên độ khác nhau tạo chiều sâu */
+.auth-cover .tt-xu { translate: calc(var(--mx, 0) * 26px) calc(var(--my, 0) * 18px); }
+.auth-cover .tt-tien { translate: calc(var(--mx, 0) * -34px) calc(var(--my, 0) * -22px); }
+.auth-cover .cover-t { translate: calc(var(--mx, 0) * -8px) calc(var(--my, 0) * -6px); }
+.auth-cover .mk-heo { translate: calc(var(--mx, 0) * 14px) calc(var(--my, 0) * 9px); }
+.auth-cover .cover-the { translate: calc(var(--mx, 0) * 6px) calc(var(--my, 0) * 4px); }
+.mk-heo { position: relative; padding: 0; background: none; border: 0; cursor: pointer; border-radius: 40%; }
+
+@keyframes mk-troi { 50% { transform: translateY(-12px) rotate(4deg); } }
+.trang-tri.tt-xu { animation: mk-troi 6s ease-in-out infinite; }
+.trang-tri.tt-tien { animation: mk-troi 7.5s ease-in-out -2s infinite; }
+@keyframes mk-chop { 0%, 93%, 100% { scale: 1 1; } 96% { scale: 1 .1; } }
+.auth-cover .heo-mat { transform-box: fill-box; transform-origin: center; animation: mk-chop 4.6s linear infinite; }
+
+@keyframes mk-dong { from { translate: 0 105%; opacity: 0; } }
+.mk-vao-bia .cover-t { overflow: hidden; padding-block: 4px; }
+.mk-vao-bia .cover-t p { animation: mk-dong 800ms var(--ease) 100ms backwards; }
+.mk-vao-bia .cover-t p + p { animation-delay: 240ms; }
+.mk-vao-bia .mk-heo { animation: mk-nay 700ms var(--nhun) 380ms backwards; }
+.mk-vao-bia .cover-the { animation: mk-dat 600ms var(--ease) 620ms backwards; }
+.mk-vao-bia .cover-cau { animation: mk-viet 1200ms steps(28) 900ms backwards; }
+.mk-vao-bia .auth-form { animation: mk-dat 600ms var(--ease) 200ms backwards; }
+.mk-vao-bia .auth-form > :not(.bang) { animation: mk-len 420ms var(--ease) backwards; animation-delay: 360ms; }
+.mk-vao-bia .auth-form > :nth-child(3) { animation-delay: 430ms; }
+.mk-vao-bia .auth-form > :nth-child(4) { animation-delay: 500ms; }
+.mk-vao-bia .auth-form > :nth-child(5) { animation-delay: 570ms; }
+.mk-vao-bia .auth-form > :nth-child(n+6) { animation-delay: 640ms; }
+.mk-vao-bia .auth-nho { animation: mk-dat 600ms var(--nhun) 820ms backwards; }
+
+/* Xu rơi một lượt khi mở bìa */
+.mk-mua-xu { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.mk-mua-xu i { position: absolute; top: -30px; width: 22px; height: 22px; border-radius: 50%; background: var(--yellow); border: 2px solid var(--ink); opacity: 0; animation: mk-xu 1900ms cubic-bezier(.45, 0, .85, .6) both; }
+.mk-mua-xu i::after { content: ""; position: absolute; left: 8px; top: 4px; width: 2px; height: 10px; background: var(--on-yellow); }
+@keyframes mk-xu { 0% { opacity: 1; translate: 0 0; rotate: 0deg; } 85% { opacity: 1; } 100% { opacity: 0; translate: 14px 105vh; rotate: 320deg; } }
+
+/* Mở sổ sau khi đăng nhập */
+.mk-bia { position: fixed; inset: 0; z-index: 60; pointer-events: none; perspective: 1800px; }
+.mk-bia-to { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; background: var(--side); border-right: 3px solid var(--ink); box-shadow: 12px 0 30px var(--shadow); font-family: var(--hand); transform-origin: 0 50%; animation: mk-khep 230ms var(--ease) backwards; }
+.mk-bia-to p:first-child { font-size: 24px; color: var(--ink3); } .mk-bia-to p:last-child { font-size: 64px; line-height: 1; }
+@keyframes mk-khep { from { opacity: 0; scale: 1.04; } }
+.mk-bia.mo .mk-bia-to { transform: rotateY(-102deg); opacity: .2; transition: transform 640ms cubic-bezier(.55, 0, .25, 1), opacity 300ms ease 340ms; }
+
+/* ===== In báo cáo: không để khối nào còn ẩn ===== */
+@media print { .mk-an { opacity: 1 !important; } .mk-bia, .mk-mua-xu { display: none !important; } }

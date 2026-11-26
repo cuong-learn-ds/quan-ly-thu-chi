@@ -1,5 +1,6 @@
 import { api, PHIEN, CHE_DO, h, bo, thongBao, truong, truongMatKhau, chay, hopThoai, ic, nut, nutIcon, datHanhDong, dangTai, homNay, luotMoi } from './core.js';
 import { heo, heoMini, bangDinh, giayNho, gachChan } from './ve.js';
+import { trangMoi, biaSo, moSo } from './dong.js';
 
 CHE_DO.ap();
 /** Hộp thoại mã QR: quét bằng điện thoại cùng Wi-Fi để mở web. */
@@ -133,6 +134,7 @@ async function dinhTuyen() {
   const [ten, ham] = TRANG[khoa];
   luotMoi(); // vào trang mới: các chuyển động "lần đầu hiện" được chạy lại
   const { noiDung } = veKhung(khoa, ten);
+  trangMoi(noiDung, phang().findIndex(([href]) => href === `#/${khoa}`));
   document.title = `${ten} · Quản lý thu chi`;
   clearInterval(timerChuong); timerChuong = setInterval(capNhatChuong, 60000); capNhatChuong();
   // Nội dung trang nằm trong .page-in (display: contents); khung xương chỉ hiện khi trang chưa vẽ gì.
@@ -169,13 +171,14 @@ function veXacThuc(che) {
           try {
             if (dangKy) { await api('POST', '/auth/dang-ky', { hoTen: ten.value, email: email.value, matKhau: mk.value }); thongBao('Đăng ký thành công, hãy đăng nhập'); location.hash = '#/dang-nhap'; return; }
             const d = await api('POST', '/auth/dang-nhap', { email: email.value, matKhau: mk.value });
-            PHIEN.luu(d); location.hash = `#/${trangMacDinh()}`;
+            PHIEN.luu(d); moSo(() => { location.hash = `#/${trangMacDinh()}`; });
           } catch (er) { loi.append(ic('circle-alert'), h('span', {}, er.message)); } finally { nutGui.disabled = false; nutGui.removeAttribute('aria-busy'); }
         } }, bangDinh('b', { trai: '50%', xoay: -3 }),
         h('div', { class: 'auth-h' }, h('h1', { id: 'h-dn' }, dangKy ? 'Tạo tài khoản' : 'Đăng nhập'), h('p', { class: 'muted' }, dangKy ? 'Mở một cuốn sổ mới cho riêng bạn.' : 'Mở sổ để ghi tiếp.')),
         dangKy ? truong('Họ tên', ten) : null, truong('Email', email), truongMatKhau('Mật khẩu', mk, dangKy ? 'Từ 6 ký tự' : null), loi, nutGui,
         h('p', { class: 'auth-doi' }, dangKy ? 'Đã có tài khoản? ' : 'Chưa có tài khoản? ', h('a', { href: dangKy ? '#/dang-nhap' : '#/dang-ky' }, dangKy ? 'Đăng nhập' : 'Đăng ký'))),
         dangKy ? null : h('ul', { class: 'auth-nho' }, giayNho(['Tài khoản dùng thử:', h('br'), h('b', { class: 'auth-tk' }, 'demo@demo.vn · Demo@123')], { mau: 'y', icon: 'lightbulb', i: 0, xoay: -2, bang: 'p' }))))));
+  biaSo(app);
   document.title = `${dangKy ? 'Đăng ký' : 'Đăng nhập'} · Quản lý thu chi`;
 }
 
